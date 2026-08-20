@@ -2,7 +2,7 @@
 
 ## Project
 
-EduConflux is an AI-powered Education Operations Platform.
+EduConflux is an Education Operations Platform.
 
 This repository contains the **React frontend**.
 
@@ -91,7 +91,6 @@ Use orange mainly for:
 - Active states
 - Important actions
 - Highlights
-- AI-related elements
 
 Do not make the entire interface orange.
 

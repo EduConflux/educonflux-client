@@ -20,7 +20,7 @@ The goal is to establish the visual language and interaction patterns that will 
 
 **Product:** EduConflux
 
-**Type:** AI-Powered Education Operations Platform
+**Type:** Education Operations Platform
 
 EduConflux is designed as a unified digital platform for educational institutions, combining:
 
@@ -31,7 +31,6 @@ EduConflux is designed as a unified digital platform for educational institution
 - Notifications
 - Analytics
 - Administration
-- AI-powered assistance
 
 EduConflux should NOT visually resemble a traditional:
 
@@ -71,7 +70,6 @@ Do not copy these products. Use them only as references for usability, layout qu
 - Product preview / visual section
 - Core platform benefits
 - Feature highlights
-- AI capabilities preview
 - Collaboration preview
 - Academic operations preview
 - Footer
@@ -148,7 +146,6 @@ Purpose:
 - Active navigation
 - Selected states
 - Important actions
-- AI indicators
 - Highlights
 - Focus states
 - Brand accents
@@ -305,7 +302,6 @@ EduConflux Logo
 
 Platform
 Features
-AI
 About
 
 Login
@@ -336,7 +332,7 @@ Suggested positioning:
 
 > The operating platform for modern education.
 
-Supporting message should communicate that EduConflux brings academics, learning, communication, collaboration and intelligence into one unified platform.
+Supporting message should communicate that EduConflux brings academics, learning, communication, collaboration and analytics into one unified platform.
 
 Primary CTA:
 
@@ -381,9 +377,9 @@ Assignments, homework, resources and submissions.
 
 Messaging, announcements and collaboration.
 
-### Intelligence
+### Analytics & Reporting
 
-AI-powered insights and assistance.
+Institutional performance insights and analytics reporting.
 
 Each feature should have:
 
@@ -394,26 +390,7 @@ Each feature should have:
 
 ---
 
-# 12. AI Section
-
-Introduce AI as a core part of EduConflux.
-
-Example capabilities:
-
-- AI Assistant
-- Assignment Generation
-- Homework Generation
-- Notice Generation
-- Attendance Insights
-- Performance Analysis
-
-The design should make AI feel integrated into the platform rather than appearing as a separate chatbot product.
-
-Use orange as a subtle AI visual accent.
-
----
-
-# 13. Login Page
+# 12. Login Page
 
 The login experience should be significantly simpler than the landing page.
 
@@ -732,9 +709,9 @@ Avoid:
 
 Use the following prompt to generate the Phase 1 UI:
 
-> Design the landing page and authentication experience for **EduConflux**, a premium AI-powered Education Operations Platform.
+> Design the landing page and authentication experience for **EduConflux**, a premium Education Operations Platform.
 >
-> EduConflux is not a traditional student management system or college ERP. It is designed as a unified digital workspace for educational institutions, combining academic operations, learning management, communication, collaboration, notifications, analytics and AI assistance.
+> EduConflux is not a traditional student management system or college ERP. It is designed as a unified digital workspace for educational institutions, combining academic operations, learning management, communication, collaboration, notifications, and analytics.
 >
 > Create ONLY the Phase 1 experience:
 >
