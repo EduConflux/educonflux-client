@@ -102,7 +102,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
         <button 
           type="button"
           onClick={() => onNavigate('/')}
-          className="inline-block focus:outline-hidden focus:ring-2 focus:ring-[#F97316] rounded-md"
+          className="inline-block focus:outline-hidden focus:ring-2 focus:ring-[#F97316] rounded-md lg:hidden"
         >
           <Logo size="lg" />
         </button>

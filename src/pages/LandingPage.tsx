@@ -10,14 +10,14 @@ import {
   Calendar,
   Lock,
   Layers,
-  Sparkles,
   CheckCircle2,
-  Send,
   Check,
   ArrowRight,
   ShieldCheck,
   BookOpen,
-  Clock
+  Clock,
+  Menu,
+  X
 } from 'lucide-react';
 
 // Import assets logos and video
@@ -34,7 +34,8 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [activeFeatureTab, setActiveFeatureTab] = useState<string>('Setup');
+  const [activeFeatureTab, setActiveFeatureTab] = useState<string>('Planning');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   // Pure React Scroll Progress Handler
@@ -51,15 +52,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleNavClick = (id: string) => {
+    setMobileMenuOpen(false);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7F7] text-[#171717] flex flex-col font-sans relative overflow-x-hidden selection:bg-[#F97316] selection:text-white">
       {/* Top Scroll Progress Bar */}
       <div
-        className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] z-50 origin-left transition-transform duration-75 ease-out"
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#F97316] to-[#EA580C] z-50 origin-left transition-transform duration-75 ease-out"
         style={{ transform: `scaleX(${scrollProgress})` }}
       />
 
-      {/* HERO SECTION WITH VIDEO BACKGROUND & TRANSPARENT HEADER */}
+      {/* 1. HERO SECTION WITH VIDEO BACKGROUND & TRANSPARENT HEADER */}
       <div className="relative text-white overflow-hidden">
         {/* Background Video */}
         <video
@@ -86,51 +95,97 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             <Logo size="md" variant="light" />
           </div>
 
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm sm:text-[15px] font-bold text-white/95 drop-shadow-xs">
-            <a href="#features" className="hover:text-[#F97316] transition-colors">Features</a>
-            <a href="#services" className="hover:text-[#F97316] transition-colors">Services</a>
-            <a href="#multitenant" className="hover:text-[#F97316] transition-colors">Architecture</a>
-            <a href="#integrations" className="hover:text-[#F97316] transition-colors">Integrations</a>
+            <button onClick={() => handleNavClick('features')} className="hover:text-[#F97316] transition-colors cursor-pointer">Features</button>
+            <button onClick={() => handleNavClick('services')} className="hover:text-[#F97316] transition-colors cursor-pointer">Services</button>
+            <button onClick={() => handleNavClick('infrastructure')} className="hover:text-[#F97316] transition-colors cursor-pointer">Architecture</button>
+            <button onClick={() => handleNavClick('integrations')} className="hover:text-[#F97316] transition-colors cursor-pointer">Integrations</button>
           </nav>
 
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => onNavigate('/login')}
-              className="text-sm font-bold bg-[#F97316] hover:bg-[#EA580C] text-white px-5 py-2.5 rounded-lg transition-all shadow-md cursor-pointer"
+              className="text-sm font-bold bg-[#F97316] hover:bg-[#EA580C] text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-all shadow-md cursor-pointer mobile-touch-target"
             >
               Sign In
+            </button>
+
+            {/* Mobile Hamburger Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg bg-black/35 hover:bg-black/50 text-white border border-white/20 transition-all cursor-pointer mobile-touch-target"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </header>
 
-        {/* 2. HERO CONTENT (LEFT-ALIGNED & WHITE TYPOGRAPHY) */}
-        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-28">
-          <div className="max-w-3xl space-y-6 text-left">
-            
+        {/* Mobile Dropdown Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden relative z-30 px-4 pb-6 pt-2 bg-neutral-950/95 backdrop-blur-xl border-b border-white/10 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex flex-col gap-3 text-sm font-bold text-white/90">
+              <button 
+                onClick={() => handleNavClick('features')} 
+                className="text-left py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-[#F97316] transition-all"
+              >
+                Features
+              </button>
+              <button 
+                onClick={() => handleNavClick('services')} 
+                className="text-left py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-[#F97316] transition-all"
+              >
+                Services
+              </button>
+              <button 
+                onClick={() => handleNavClick('infrastructure')} 
+                className="text-left py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-[#F97316] transition-all"
+              >
+                Architecture
+              </button>
+              <button 
+                onClick={() => handleNavClick('integrations')} 
+                className="text-left py-2.5 px-3 rounded-lg hover:bg-white/10 hover:text-[#F97316] transition-all"
+              >
+                Integrations
+              </button>
+              <div className="pt-2 border-t border-white/10">
+                <button 
+                  onClick={() => onNavigate('/login')}
+                  className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white py-3 rounded-lg font-bold text-center transition-all shadow-md"
+                >
+                  Sign In to Workspace
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-            <h1 className="font-['Outfit',sans-serif] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.12] drop-shadow-md">
+        {/* 2. HERO CONTENT (LEFT-ALIGNED & RESPONSIVE) */}
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-20 sm:pb-28">
+          <div className="max-w-3xl space-y-5 sm:space-y-6 text-left">
+          
+            <h1 className="font-['Outfit',sans-serif] text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.14] drop-shadow-md">
               Academic operations, <br />
               simplified in one workspace.
             </h1>
 
-            <p className="text-sm sm:text-base text-neutral-100 leading-relaxed font-medium max-w-2xl drop-shadow-xs">
+            <p className="text-xs sm:text-sm sm:text-base text-neutral-100 leading-relaxed font-medium max-w-2xl drop-shadow-xs">
               A cohesive platform for educational institutions to coordinate course scheduling, attendance rosters, department announcements, and faculty workflows without administrative clutter.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-start gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-start gap-3 pt-2 w-full sm:w-auto">
               <button 
                 onClick={() => onNavigate('/login')}
-                className="w-full sm:w-auto bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold px-6 py-3.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-[#F97316] hover:bg-[#EA580C] text-white text-xs sm:text-sm font-bold px-6 py-3.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 mobile-touch-target"
               >
                 <span>Explore Workspace</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => {
-                  const el = document.getElementById('features');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="w-full sm:w-auto bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/30 text-white text-xs font-semibold px-6 py-3.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                onClick={() => handleNavClick('features')}
+                className="w-full sm:w-auto bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/30 text-white text-xs sm:text-sm font-semibold px-6 py-3.5 rounded-lg transition-all cursor-pointer shadow-xs mobile-touch-target text-center"
               >
                 View System Overview
               </button>
@@ -140,13 +195,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
       </div>
 
-      {/* 4. ROUNDED WHITE CONTAINER TRANSITION (AMLY STYLE) */}
-      <div className="relative z-30 bg-white rounded-t-[40px] -mt-6 pt-16 border-t border-[#E5E5E5] shadow-2xl">
-        <div id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      {/* 4. ROUNDED WHITE CONTAINER TRANSITION */}
+      <div className="relative z-30 bg-white rounded-t-[32px] sm:rounded-t-[40px] -mt-6 pt-12 sm:pt-16 border-t border-[#E5E5E5] shadow-2xl">
+        <div id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-12">
 
           {/* Main Workspace Headline */}
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#171717]">
+          <div className="text-center max-w-3xl mx-auto space-y-3 sm:space-y-4">
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#171717]">
               Everything you need to create a high performance workspace
             </h2>
             <p className="text-xs sm:text-sm text-[#525252] max-w-2xl mx-auto leading-relaxed">
@@ -154,23 +209,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          {/* Interactive Feature Icon Tabs Row */}
-          <div className="flex flex-wrap items-center justify-center gap-2 border-b border-[#E5E5E5] pb-4">
+          {/* Interactive Feature Icon Tabs Row (Mobile Scrollable) */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-1 w-full justify-start sm:justify-center border-b border-[#E5E5E5]">
             {[
-              { id: 'Setup', label: 'Academic Setup', icon: <Layers className="w-4 h-4" /> },
-              { id: 'Attendance', label: 'Attendance Sheets', icon: <CheckCircle2 className="w-4 h-4" /> },
-              { id: 'Schedules', label: 'Timetable Matrix', icon: <Calendar className="w-4 h-4" /> },
-              { id: 'Streams', label: 'Classroom Streams', icon: <FileText className="w-4 h-4" /> },
-              { id: 'Chats', label: 'Support Chats', icon: <MessageSquare className="w-4 h-4" /> },
-              { id: 'Registry', label: 'Campus Registry', icon: <Users className="w-4 h-4" /> }
+              { id: 'Planning', label: 'Academic Planning', icon: <Layers className="w-4 h-4" /> },
+              { id: 'Attendance', label: 'Attendance Tracking', icon: <CheckCircle2 className="w-4 h-4" /> },
+              { id: 'Timetables', label: 'Timetable Scheduling', icon: <Calendar className="w-4 h-4" /> },
+              { id: 'Announcements', label: 'Course Feeds', icon: <FileText className="w-4 h-4" /> },
+              { id: 'Messaging', label: 'Campus Messaging', icon: <MessageSquare className="w-4 h-4" /> },
+              { id: 'Directory', label: 'User Directory', icon: <Users className="w-4 h-4" /> }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveFeatureTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeFeatureTab === tab.id
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 whitespace-nowrap mobile-touch-target ${
+                  activeFeatureTab === tab.id
                     ? 'bg-[#F97316] text-white shadow-md'
                     : 'bg-[#F7F7F7] text-[#525252] hover:text-[#171717] hover:bg-[#E5E5E5]'
-                  }`}
+                }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
@@ -179,100 +235,107 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </div>
 
           {/* Active Tab Content Display (Left Details, Right Mockup) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center bg-[#FDFDFD] border border-[#E5E5E5] rounded-3xl p-8 shadow-xs">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center bg-[#FDFDFD] border border-[#E5E5E5] rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xs">
             {/* Left Column: Descriptions & Bullet List */}
-            <div className="lg:col-span-6 space-y-6">
-              {activeFeatureTab === 'Setup' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Academic Setup Console</h3>
+            <div className="lg:col-span-6 space-y-5 sm:space-y-6">
+              {activeFeatureTab === 'Planning' && (
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Curriculum & Departments</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Academic Setup Console</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Simplify course cataloging with smart automation—create departments, manage semester periods, and map degree programs seamlessly.</p>
                   <ul className="space-y-2.5 text-xs text-[#525252] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Single/Multi Academic Year Setup</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Department & Degree Program Mapping</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Course Catalog & Core/Elective Classification</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Single/Multi Academic Year Setup</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Department & Degree Program Mapping</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Course Catalog & Classification</li>
                   </ul>
                 </div>
               )}
 
               {activeFeatureTab === 'Attendance' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Roster Attendance Telemetry</h3>
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Roster Logs</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Roster Attendance Telemetry</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Sign course rosters in single-tap grids with automated percentage calculations and real-time student analytics.</p>
                   <ul className="space-y-2.5 text-xs text-[#525252] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Single-click Present / Absent / Late Toggles</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Timetable-synced roster sheets</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Cumulative attendance rate telemetry</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Single-click Present / Absent / Late Toggles</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Timetable-synced roster sheets</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Cumulative attendance rate telemetry</li>
                   </ul>
                 </div>
               )}
 
-              {activeFeatureTab === 'Schedules' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Timetable Scheduler Matrix</h3>
+              {activeFeatureTab === 'Timetables' && (
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Scheduling Matrix</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Timetable Scheduler Matrix</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Schedule timing slots, days of the week, classrooms, and courses without overlapping slot conflicts.</p>
                   <ul className="space-y-2.5 text-xs text-[#525252] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Interactive timing slot builder</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Conflict-free room & instructor assignments</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Automatic calendar updates for faculty and students</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Interactive timing slot builder</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Conflict-free room & instructor assignments</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Automatic calendar updates for faculty and students</li>
                   </ul>
                 </div>
               )}
 
-              {activeFeatureTab === 'Streams' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Classroom Announcement Streams</h3>
+              {activeFeatureTab === 'Announcements' && (
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Classroom Stream</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Classroom Announcement Streams</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Publish announcements, homework updates, and lesson resources directly into dedicated class feeds.</p>
                   <ul className="space-y-2.5 text-xs text-[#525252] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Chronological announcement streams</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Slide & resource file distribution</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Roster-wide broadcasts</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Chronological announcement streams</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Slide & resource file distribution</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Roster-wide broadcasts</li>
                   </ul>
                 </div>
               )}
 
-              {activeFeatureTab === 'Chats' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Websocket Support Chats</h3>
+              {activeFeatureTab === 'Messaging' && (
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Campus Channels</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Websocket Support Chats</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Launch classroom support chat channels or direct peer messaging boards safely inside the workspace console.</p>
                   <ul className="space-y-2.5 text-xs text-[#525252] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Inbuilt websocket group chat rooms</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Private student-instructor queries</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Secure message history logs</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Inbuilt websocket group chat rooms</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Private student-instructor queries</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Secure message history logs</li>
                   </ul>
                 </div>
               )}
 
-              {activeFeatureTab === 'Registry' && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <h3 className="text-2xl font-black text-[#171717]">Campus User Directory</h3>
+              {activeFeatureTab === 'Directory' && (
+                <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#F97316]">Identity & Access</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#171717]">Campus User Directory</h3>
                   <p className="text-xs text-[#525252] leading-relaxed">Maintain comprehensive profiles for students, faculty, and administrative staff with token activation controls.</p>
                   <ul className="space-y-2.5 text-xs text-[#737373] font-semibold">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Demographics linked to class sections</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Token activation & security resets</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316]" /> Paginated search & role filtering</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Demographics linked to class sections</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Token activation & security resets</li>
+                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#F97316] shrink-0" /> Paginated search & role filtering</li>
                   </ul>
                 </div>
               )}
 
               <button
                 onClick={() => onNavigate('/login')}
-                className="bg-[#F97316] hover:bg-[#EA580C] text-white px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer"
+                className="w-full sm:w-auto bg-[#F97316] hover:bg-[#EA580C] text-white px-5 py-3 sm:py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer inline-flex items-center justify-center gap-2 mobile-touch-target"
               >
-                Access Workspace Console
+                <span>Access Workspace Console</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Right Column: Visual Component Card Mockup */}
-            <div className="lg:col-span-6 bg-white border border-[#E5E5E5] p-6 rounded-2xl shadow-md min-h-[240px] flex flex-col justify-center">
-              {activeFeatureTab === 'Setup' && (
+            <div className="lg:col-span-6 bg-white border border-[#E5E5E5] p-4 sm:p-6 rounded-2xl shadow-md min-h-[220px] flex flex-col justify-center overflow-hidden">
+              {activeFeatureTab === 'Planning' && (
                 <div className="space-y-2.5 text-xs">
                   <div className="flex justify-between items-center bg-[#F7F7F7] p-3 rounded-xl border border-[#E5E5E5] font-semibold">
-                    <span>CS101: Introduction to Algorithms</span>
-                    <span className="text-[#F97316] font-bold text-[10px] bg-orange-50 px-2 py-0.5 rounded-md">CORE</span>
+                    <span className="truncate pr-2">CS101: Introduction to Algorithms</span>
+                    <span className="text-[#F97316] font-bold text-[10px] bg-orange-50 px-2 py-0.5 rounded-md shrink-0">CORE</span>
                   </div>
                   <div className="flex justify-between items-center bg-[#F7F7F7] p-3 rounded-xl border border-[#E5E5E5] font-semibold">
-                    <span>CS202: Database Management Systems</span>
-                    <span className="text-[#F97316] font-bold text-[10px] bg-orange-50 px-2 py-0.5 rounded-md">CORE</span>
+                    <span className="truncate pr-2">CS202: Database Management Systems</span>
+                    <span className="text-[#F97316] font-bold text-[10px] bg-orange-50 px-2 py-0.5 rounded-md shrink-0">CORE</span>
                   </div>
                 </div>
               )}
@@ -294,8 +357,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              {activeFeatureTab === 'Schedules' && (
-                <div className="grid grid-cols-2 gap-3 text-xs">
+              {activeFeatureTab === 'Timetables' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="border border-[#E5E5E5] p-3.5 rounded-xl bg-orange-50/60 space-y-1">
                     <span className="font-bold text-[#F97316]">CS101 (Sec A)</span>
                     <span className="text-[10px] text-[#737373] block">09:00 AM - Room 302</span>
@@ -307,7 +370,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              {activeFeatureTab === 'Streams' && (
+              {activeFeatureTab === 'Announcements' && (
                 <div className="border border-[#E5E5E5] rounded-xl p-4 space-y-2 bg-[#F7F7F7]/60 text-xs">
                   <div className="flex justify-between text-[9px] text-[#737373] font-bold">
                     <span>Dr. Sharma</span>
@@ -317,28 +380,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              {activeFeatureTab === 'Chats' && (
+              {activeFeatureTab === 'Messaging' && (
                 <div className="space-y-3 text-xs">
-                  <div className="bg-[#F7F7F7] p-3 rounded-xl max-w-xs">
+                  <div className="bg-[#F7F7F7] p-3 rounded-xl max-w-[85%]">
                     <span className="font-bold block text-[10px]">Dr. Sharma</span>
                     <span>Welcome to CS101 support group chat.</span>
                   </div>
-                  <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl max-w-xs float-right">
+                  <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl max-w-[85%] ml-auto text-right">
                     <span className="font-bold block text-[10px] text-[#F97316]">John Doe</span>
                     <span>Thank you professor!</span>
                   </div>
                 </div>
               )}
 
-              {activeFeatureTab === 'Registry' && (
+              {activeFeatureTab === 'Directory' && (
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between items-center bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
-                    <span className="font-bold text-emerald-800">sharma.dr@educonflux.com</span>
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold text-[9px]">ACTIVE</span>
+                    <span className="font-bold text-emerald-800 truncate pr-2">sharma.dr@educonflux.com</span>
+                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold text-[9px] shrink-0">ACTIVE</span>
                   </div>
                   <div className="flex justify-between items-center bg-red-50 border border-red-200 p-3 rounded-xl">
-                    <span className="font-bold text-red-800">inactive.user@educonflux.com</span>
-                    <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded-md font-bold text-[9px]">INACTIVE</span>
+                    <span className="font-bold text-red-800 truncate pr-2">inactive.user@educonflux.com</span>
+                    <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded-md font-bold text-[9px] shrink-0">INACTIVE</span>
                   </div>
                 </div>
               )}
@@ -347,11 +410,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
         </div>
 
-        {/* 5. "AT EDUCONFLUX WE DELIVER QUALITY DIGITAL CONVERGENCE" BLOCK */}
-        <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-[#E5E5E5] mt-16 space-y-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#171717] tracking-tight">
+        {/* 5. SERVICES BLOCK */}
+        <div id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 border-t border-[#E5E5E5] mt-12 sm:mt-16 space-y-12 sm:space-y-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            <div className="space-y-5 sm:space-y-6 text-left">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-[#171717] tracking-tight">
                 At EduConflux we deliver <br />
                 <span className="text-[#F97316]">quality digital convergence</span>
               </h2>
@@ -361,17 +424,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               <div className="pt-2">
                 <button
                   onClick={() => onNavigate('/login')}
-                  className="bg-[#171717] hover:bg-black text-white text-xs font-extrabold px-5 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                  className="w-full sm:w-auto bg-[#171717] hover:bg-black text-white text-xs font-extrabold px-6 py-3 rounded-xl shadow-xs transition-all cursor-pointer mobile-touch-target"
                 >
                   Connect Workspace
                 </button>
               </div>
             </div>
 
-            <div className="relative flex justify-center items-center h-72">
-              <div className="w-80 h-52 bg-white border border-[#E5E5E5] rounded-2xl shadow-xl p-5 flex flex-col justify-between hover:scale-105 transition-all z-20">
+            <div className="relative flex justify-center items-center h-64 sm:h-72">
+              <div className="w-full max-w-sm bg-white border border-[#E5E5E5] rounded-2xl shadow-xl p-5 flex flex-col justify-between hover:scale-105 transition-all z-20">
                 <span className="text-[10px] font-extrabold text-[#EA580C] uppercase tracking-wider">Live Lecture Tracker</span>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 my-3">
                   <span className="font-bold text-sm text-[#171717] block">Algorithms CS101</span>
                   <span className="text-[11px] text-[#737373] block">09:00 AM - Room 302 • Dr. Sharma</span>
                 </div>
@@ -389,7 +452,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </div>
 
           {/* Sub-Services Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {[
               {
                 icon: <MessageSquare className="w-6 h-6 text-[#F97316]" />,
@@ -407,7 +470,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 desc: "Provide grade management metrics dashboards combined with direct course study material resource catalogs."
               }
             ].map((serv, i) => (
-              <div key={i} className="bg-[#F7F7F7] border border-[#E5E5E5] p-6 rounded-2xl space-y-4 hover:border-[#F97316]/50 transition-colors">
+              <div key={i} className="bg-[#F7F7F7] border border-[#E5E5E5] p-5 sm:p-6 rounded-2xl space-y-4 hover:border-[#F97316]/50 transition-colors">
                 <div className="p-3 bg-white rounded-xl w-fit shadow-xs">{serv.icon}</div>
                 <h4 className="font-extrabold text-sm text-[#171717]">{serv.title}</h4>
                 <p className="text-xs text-[#737373] leading-relaxed">{serv.desc}</p>
@@ -417,11 +480,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* 6. CORE SERVICES & MULTITENANT OVERVIEW */}
-        <div id="multitenant" className="bg-[#F7F7F7] py-20 border-t border-b border-[#E5E5E5]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
+        <div id="infrastructure" className="bg-[#F7F7F7] py-16 sm:py-20 border-t border-b border-[#E5E5E5]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            <div className="space-y-5 sm:space-y-6 text-left">
               <Badge variant="orange" size="md">Multi-Tenant Solution</Badge>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
+              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
                 Multi-tenant architecture <br />
                 <span className="text-[#F97316]">built for institutional scale.</span>
               </h2>
@@ -430,7 +493,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {[
                 {
                   title: "Multi-tenant Platform",
@@ -453,7 +516,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                   icon: <MessageSquare className="w-5 h-5 text-[#F97316]" />
                 }
               ].map((stat, idx) => (
-                <div key={idx} className="bg-white border border-[#E5E5E5] p-5 rounded-2xl flex gap-3.5 items-start">
+                <div key={idx} className="bg-white border border-[#E5E5E5] p-4 sm:p-5 rounded-2xl flex gap-3.5 items-start">
                   <div className="p-2 bg-orange-50 rounded-lg shrink-0">{stat.icon}</div>
                   <div className="text-xs space-y-1">
                     <h4 className="font-extrabold text-[#171717]">{stat.title}</h4>
@@ -466,10 +529,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* 5. CONFLUX INTEGRATION STANDALONE SECTION */}
-        <div id="integrations" className="bg-white py-20 border-b border-[#E5E5E5] rounded-b-[40px] lg:rounded-b-[48px] relative z-30 shadow-2xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left logos grid using asset icons */}
-            <div className="grid grid-cols-3 gap-6 items-center">
+        <div id="integrations" className="bg-white py-16 sm:py-20 border-b border-[#E5E5E5] rounded-b-[32px] sm:rounded-b-[40px] lg:rounded-b-[48px] relative z-30 shadow-2xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
+            {/* Left logos grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6 items-center">
               {[
                 { img: googleClassroomLogo, name: 'Google Classroom' },
                 { img: teamsLogo, name: 'Microsoft Teams' },
@@ -477,24 +540,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 { img: moodleLogo, name: 'Moodle' },
                 { img: whatsappIcon, name: 'WhatsApp' }
               ].map((logo, idx) => (
-                <div key={idx} className="border border-[#E5E5E5] rounded-2xl p-5 flex flex-col items-center justify-center text-center bg-white shadow-xs hover:border-[#F97316] transition-colors gap-2.5">
+                <div key={idx} className="border border-[#E5E5E5] rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center text-center bg-white shadow-xs hover:border-[#F97316] transition-colors gap-2.5">
                   <img
                     src={logo.img}
                     alt={logo.name}
-                    className="h-10 w-auto object-contain"
+                    className="h-8 sm:h-10 w-auto object-contain"
                   />
                   <span className="text-[10px] font-bold text-[#737373]">{logo.name}</span>
                 </div>
               ))}
-              <div className="border border-dashed border-[#F97316]/40 rounded-2xl p-5 flex items-center justify-center text-center bg-orange-50/20 text-[#F97316] text-[10px] font-extrabold h-full">
+              <div className="border border-dashed border-[#F97316]/40 rounded-2xl p-4 sm:p-5 flex items-center justify-center text-center bg-orange-50/20 text-[#F97316] text-[10px] font-extrabold h-full min-h-[90px]">
                 + More Inbuilt
               </div>
             </div>
 
             {/* Right description */}
-            <div className="space-y-6">
+            <div className="space-y-5 sm:space-y-6 text-left">
               <Badge variant="orange" size="md">Active Integrations</Badge>
-              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
+              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
                 We give all these <br />
                 <span className="text-[#F97316]">applications together.</span>
               </h2>
@@ -506,7 +569,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* 6. BOTTOM CALL TO ACTION WITH VIDEO BACKGROUND (OVERLAPPED UNDER ROUNDED SECTION) */}
-        <div className="relative overflow-hidden bg-neutral-950 text-white min-h-[440px] lg:min-h-[500px] -mt-12 lg:-mt-16 pt-32 pb-24 lg:pt-36 lg:pb-28 px-4 sm:px-6 lg:px-8 z-10">
+        <div className="relative overflow-hidden bg-neutral-950 text-white min-h-[400px] sm:min-h-[440px] lg:min-h-[500px] -mt-10 sm:-mt-12 lg:-mt-16 pt-24 sm:pt-32 pb-20 sm:pb-24 lg:pt-36 lg:pb-28 px-4 sm:px-6 lg:px-8 z-10">
           {/* Background Video */}
           <video 
             src={heroVideo}
@@ -526,10 +589,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none" />
 
           {/* CTA Content */}
-          <div className="relative z-20 max-w-4xl mx-auto text-center space-y-6">
-
-
-            <h2 className="font-['Outfit',sans-serif] text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight drop-shadow-md">
+          <div className="relative z-20 max-w-4xl mx-auto text-center space-y-5 sm:space-y-6">
+            <h2 className="font-['Outfit',sans-serif] text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight drop-shadow-md">
               Transform your institution's academic operations.
             </h2>
 
@@ -537,19 +598,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               Eliminate software fragmentation. Empower professors, streamline attendance, and coordinate schedules on a single reliable platform.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2 w-full sm:w-auto">
               <button 
                 onClick={() => onNavigate('/login')}
-                className="w-full sm:w-auto bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold px-6 py-3.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-[#F97316] hover:bg-[#EA580C] text-white text-xs sm:text-sm font-bold px-6 py-3.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 mobile-touch-target"
               >
                 <span>Access Workspace</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-full sm:w-auto bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/30 text-white text-xs font-semibold px-6 py-3.5 rounded-lg transition-all cursor-pointer shadow-xs"
+                className="w-full sm:w-auto bg-black/35 hover:bg-black/50 backdrop-blur-md border border-white/30 text-white text-xs sm:text-sm font-semibold px-6 py-3.5 rounded-lg transition-all cursor-pointer shadow-xs mobile-touch-target"
               >
                 Back to Top
               </button>
@@ -558,22 +619,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* 7. FOOTER */}
-        <footer className="bg-[#171717] text-white/90 text-xs py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            <div className="space-y-4">
+        <footer className="bg-[#171717] text-white/90 text-xs py-12 sm:py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10 sm:mb-12">
+            <div className="space-y-3">
               <span className="font-black text-sm block">EDUCONFLUX ACADEMY</span>
               <p className="text-[11px] text-white/60 leading-relaxed">The unified platform designed for modern school/college convergence, consolidating timetables, registrations, and live stream chats.</p>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <span className="font-bold text-xs block text-[#F97316]">Services</span>
               <div className="flex flex-col gap-2 text-[11px] text-white/70">
-                <a href="#" className="hover:text-white">Google Classroom Portal</a>
-                <a href="#" className="hover:text-white">Personal Student Desk</a>
-                <a href="#" className="hover:text-white">McGraw-Hill Hub</a>
-                <a href="#" className="hover:text-white">Class Dojo Desk</a>
+                <a href="#features" className="hover:text-white">Google Classroom Portal</a>
+                <a href="#features" className="hover:text-white">Personal Student Desk</a>
+                <a href="#features" className="hover:text-white">McGraw-Hill Hub</a>
+                <a href="#features" className="hover:text-white">Class Dojo Desk</a>
               </div>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <span className="font-bold text-xs block text-[#F97316]">Support Desk</span>
               <div className="flex flex-col gap-2 text-[11px] text-white/70">
                 <a href="#" className="hover:text-white">Institutional FAQs</a>
@@ -582,7 +643,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 <a href="#" className="hover:text-white">Security Terms</a>
               </div>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <span className="font-bold text-xs block text-[#F97316]">Contact Details</span>
               <div className="flex flex-col gap-2.5 text-[11px] text-white/70">
                 <span className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-[#F97316]" /> +91 9489906672</span>
@@ -591,7 +652,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </div>
             </div>
           </div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-white/10 text-center text-[10px] text-white/50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 border-t border-white/10 text-center text-[10px] text-white/50">
             © {new Date().getFullYear()} EduConflux Academy. All rights reserved. Registered Institution platform.
           </div>
         </footer>
@@ -600,3 +661,4 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+
