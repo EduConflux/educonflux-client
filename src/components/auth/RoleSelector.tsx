@@ -1,6 +1,6 @@
 import React from 'react';
 import type { UserRole, RoleConfig } from '../../types/auth';
-import { Shield, GraduationCap, BookOpen, Users, Check } from 'lucide-react';
+import { Shield, GraduationCap, BookOpen, Users } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface RoleSelectorProps {

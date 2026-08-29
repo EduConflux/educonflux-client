@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useLoginMutation } from '../../store/api/authApi';
+import { setCredentials } from '../../store/slices/authSlice';
+import { extractUserFromAuthResponse } from '../../lib/authUtils';
 import type { LoginFormState, ValidationErrors, AuthErrorType } from '../../types/auth';
 import { RoleSelector, ROLES_DATA } from './RoleSelector';
 import { Input } from '../common/Input';
@@ -22,6 +26,9 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
+  const dispatch = useDispatch();
+  const [loginApi, { isLoading }] = useLoginMutation();
+
   const [formState, setFormState] = useState<LoginFormState>({
     role: 'STUDENT',
     email: '',
@@ -31,12 +38,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<AuthErrorType>(null);
   const [isSuccess, setIsSuccess] = useState(false);
-
-  // Demo state overrides for testing UI
-  const [demoState, setDemoState] = useState<'normal' | 'invalid_cred' | 'network_err'>('normal');
 
   const selectedRoleInfo = ROLES_DATA.find(r => r.id === formState.role) || ROLES_DATA[2];
 
@@ -59,7 +62,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
 
@@ -67,32 +70,36 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
       return;
     }
 
-    setIsLoading(true);
+    try {
+      // Execute RTK Query Login Mutation
+      const res = await loginApi({
+        email: formState.email.trim(),
+        password: formState.password,
+      }).unwrap();
 
-    // Simulate API Auth Request
-    setTimeout(() => {
-      setIsLoading(false);
+      const token = res?.token || (res as any)?.accessToken || (typeof res === 'string' ? res : 'active-session-token');
+      const user = extractUserFromAuthResponse(res, formState.email.trim(), formState.role);
 
-      if (demoState === 'invalid_cred') {
-        setAuthError('INVALID_CREDENTIALS');
-      } else if (demoState === 'network_err') {
+      dispatch(setCredentials({ token, user }));
+      setIsSuccess(true);
+
+      setTimeout(() => {
+        const targetRole = user.role || formState.role;
+        if (targetRole === 'ADMIN') {
+          onNavigate('/admin');
+        } else if (targetRole === 'TEACHER') {
+          onNavigate('/teacher');
+        } else {
+          onNavigate('/student');
+        }
+      }, 600);
+    } catch (err: any) {
+      if (err?.status === 'FETCH_ERROR' || err?.status === 504 || err?.status === 502 || err?.name === 'TypeError') {
         setAuthError('NETWORK');
       } else {
-        // Success Transition
-        setIsSuccess(true);
-        setTimeout(() => {
-          if (formState.role === 'ADMIN') {
-            onNavigate('/admin');
-          } else if (formState.role === 'TEACHER') {
-            onNavigate('/teacher');
-          } else if (formState.role === 'STUDENT') {
-            onNavigate('/student');
-          } else {
-            onNavigate('/student');
-          }
-        }, 1000);
+        setAuthError('INVALID_CREDENTIALS');
       }
-    }, 1200);
+    }
   };
 
   return (
@@ -256,50 +263,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           </form>
         )}
 
-        {/* Demo Controls Switcher for UI verification */}
-        <div className="pt-3 border-t border-[#E5E5E5] space-y-1.5">
-          <div className="flex items-center justify-between text-[10px] text-[#737373]">
-            <span className="flex items-center gap-1 font-semibold text-[#171717]">
-              <Sparkles className="w-3 h-3 text-[#F97316]" /> Demo Preset:
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1 text-[10px]">
-            <button
-              type="button"
-              onClick={() => { setDemoState('normal'); setAuthError(null); }}
-              className={`px-1.5 py-1 rounded-md border text-center font-medium cursor-pointer ${
-                demoState === 'normal' 
-                  ? 'border-[#F97316] bg-orange-50 text-[#F97316] font-bold' 
-                  : 'border-[#E5E5E5] text-[#525252] hover:bg-[#F7F7F7]'
-              }`}
-            >
-              Normal
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setDemoState('invalid_cred'); setAuthError(null); }}
-              className={`px-1.5 py-1 rounded-md border text-center font-medium cursor-pointer ${
-                demoState === 'invalid_cred' 
-                  ? 'border-red-500 bg-red-50 text-red-600 font-bold' 
-                  : 'border-[#E5E5E5] text-[#525252] hover:bg-[#F7F7F7]'
-              }`}
-            >
-              Auth Error
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setDemoState('network_err'); setAuthError(null); }}
-              className={`px-1.5 py-1 rounded-md border text-center font-medium cursor-pointer ${
-                demoState === 'network_err' 
-                  ? 'border-amber-500 bg-amber-50 text-amber-700 font-bold' 
-                  : 'border-[#E5E5E5] text-[#525252] hover:bg-[#F7F7F7]'
-              }`}
-            >
-              Network Error
-            </button>
+        {/* RTK Query Status */}
+        <div className="pt-3 border-t border-[#E5E5E5]">
+          <div className="text-[10px] text-center text-[#737373] flex items-center justify-center gap-1 font-medium">
+            <Sparkles className="w-3 h-3 text-[#F97316]" /> RTK Query Backend Sync Active
           </div>
         </div>
       </div>

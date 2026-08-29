@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Logo } from '../components/common/Logo';
-import { Badge } from '../components/common/Badge';
 import {
   Phone,
   Mail,
@@ -13,9 +12,6 @@ import {
   CheckCircle2,
   Check,
   ArrowRight,
-  ShieldCheck,
-  BookOpen,
-  Clock,
   Menu,
   X
 } from 'lucide-react';
