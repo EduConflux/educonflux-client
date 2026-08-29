@@ -80,6 +80,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
       } else {
         // Success Transition
         setIsSuccess(true);
+        setTimeout(() => {
+          if (formState.role === 'ADMIN') {
+            onNavigate('/admin');
+          } else if (formState.role === 'TEACHER') {
+            onNavigate('/teacher');
+          } else if (formState.role === 'STUDENT') {
+            onNavigate('/student');
+          } else {
+            onNavigate('/student');
+          }
+        }, 1000);
       }
     }, 1200);
   };
