@@ -25,7 +25,7 @@ import heroVideo from '../assets/I_want_an_abstract_video_for_l.mp4';
 import teamsLogo from '../assets/Teams-Logo-1.webp';
 import whatsappIcon from '../assets/WhatsApp_icon.png';
 import googleClassroomLogo from '../assets/google_classroom.png';
-import moodleLogo from '../assets/moodle.jpeg';
+import moodleLogo from '../assets/moodle.png';
 import slackLogo from '../assets/slack-new.jpg';
 
 interface LandingPageProps {
@@ -483,7 +483,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         <div id="infrastructure" className="bg-[#F7F7F7] py-16 sm:py-20 border-t border-b border-[#E5E5E5]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
             <div className="space-y-5 sm:space-y-6 text-left">
-              <Badge variant="orange" size="md">Multi-Tenant Solution</Badge>
               <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
                 Multi-tenant architecture <br />
                 <span className="text-[#F97316]">built for institutional scale.</span>
@@ -556,7 +555,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
             {/* Right description */}
             <div className="space-y-5 sm:space-y-6 text-left">
-              <Badge variant="orange" size="md">Active Integrations</Badge>
               <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[#171717]">
                 We give all these <br />
                 <span className="text-[#F97316]">applications together.</span>
