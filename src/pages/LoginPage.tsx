@@ -1,5 +1,5 @@
 import React from 'react';
-import { LoginForm } from '../components/auth/LoginForm';
+import { LoginForm } from '../features/auth/components/LoginForm';
 import loginImage from '../assets/login_image.jpg';
 import { Logo } from '../components/common/Logo';
 

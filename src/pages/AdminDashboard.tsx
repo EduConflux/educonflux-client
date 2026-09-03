@@ -1,23 +1,32 @@
 import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { Logo } from '../components/common/Logo';
-import { 
-  useGetAcademicYearsQuery,
-  useCreateAcademicYearMutation,
-  useGetDepartmentsQuery,
-  useCreateDepartmentMutation,
-  useGetProgramsQuery,
-  useGetSemestersQuery,
-  useGetCoursesQuery,
-  useCreateCourseMutation,
-  useGetClassSectionsQuery,
-  useCreateClassSectionMutation
-} from '../store/api/academicApi';
-import { logout } from '../store/slices/authSlice';
-import type { RootState } from '../store';
+import { useAuth } from '../features/auth/context/AuthContext';
+import {
+  useAcademicYears,
+  useCreateAcademicYear,
+  useDepartments,
+  useCreateDepartment,
+  usePrograms,
+  useSemesters,
+  useCourses,
+  useCreateCourse,
+  useClassSections,
+  useCreateClassSection,
+} from '../features/academic/hooks/useAcademic';
+import {
+  useStudents,
+  useCreateStudent,
+  useDeleteStudent,
+  useFaculty,
+  useCreateFaculty,
+  useDeleteFaculty,
+} from '../features/directory/hooks/useDirectory';
+import { StudentDirectoryTable } from '../features/directory/components/StudentDirectoryTable';
+import { FacultyDirectoryTable } from '../features/directory/components/FacultyDirectoryTable';
+import { CreateStudentModal } from '../features/directory/components/CreateStudentModal';
+import { CreateFacultyModal } from '../features/directory/components/CreateFacultyModal';
 import { 
   LayoutDashboard, 
-  Users, 
   FolderTree, 
   GraduationCap, 
   BookOpen, 
@@ -30,11 +39,10 @@ interface AdminDashboardProps {
   onNavigate: (route: string) => void;
 }
 
-type TabType = 'dashboard' | 'academic' | 'users' | 'students' | 'faculty';
+type TabType = 'dashboard' | 'academic' | 'students' | 'faculty';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
-  const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, logout } = useAuth();
 
   const adminName = user?.firstName 
     ? `${user.firstName} ${user.lastName || ''}`.trim() 
@@ -46,21 +54,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [academicSubTab, setAcademicSubTab] = useState<'years' | 'departments' | 'programs' | 'semesters' | 'courses' | 'sections'>('years');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddAcademicModal, setShowAddAcademicModal] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
 
-  // RTK Query Live Backend Endpoints Integration
-  const { data: liveAcademicYears = [], isLoading: isLoadingYears } = useGetAcademicYearsQuery();
-  const { data: liveDepartments = [], isLoading: isLoadingDepts } = useGetDepartmentsQuery();
-  const { data: livePrograms = [] } = useGetProgramsQuery();
-  const { data: liveSemesters = [] } = useGetSemestersQuery();
-  const { data: liveCourses = [], isLoading: isLoadingCourses } = useGetCoursesQuery();
-  const { data: liveClassSections = [], isLoading: isLoadingSections } = useGetClassSectionsQuery();
+  // TanStack Query Live Endpoints
+  const { data: liveAcademicYears = [], isLoading: isLoadingYears } = useAcademicYears();
+  const { data: liveDepartments = [], isLoading: isLoadingDepts } = useDepartments();
+  const { data: livePrograms = [] } = usePrograms();
+  const { data: liveSemesters = [] } = useSemesters();
+  const { data: liveCourses = [], isLoading: isLoadingCourses } = useCourses();
+  const { data: liveClassSections = [], isLoading: isLoadingSections } = useClassSections();
+
+  // Directory Queries
+  const { data: liveStudents = [], isLoading: isLoadingStudents } = useStudents();
+  const { data: liveFaculty = [], isLoading: isLoadingFaculty } = useFaculty();
 
   // Mutations
-  const [createAcademicYearApi] = useCreateAcademicYearMutation();
-  const [createDepartmentApi] = useCreateDepartmentMutation();
-  const [createCourseApi] = useCreateCourseMutation();
-  const [createClassSectionApi] = useCreateClassSectionMutation();
+  const createAcademicYearMutation = useCreateAcademicYear();
+  const createDepartmentMutation = useCreateDepartment();
+  const createCourseMutation = useCreateCourse();
+  const createClassSectionMutation = useCreateClassSection();
+  const createStudentMutation = useCreateStudent();
+  const deleteStudentMutation = useDeleteStudent();
+  const createFacultyMutation = useCreateFaculty();
+  const deleteFacultyMutation = useDeleteFaculty();
 
   const totalActiveYears = liveAcademicYears.length;
   const totalActiveDepts = liveDepartments.length;
@@ -68,7 +86,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
   const totalActiveSections = liveClassSections.length;
 
   const handleLogout = () => {
-    dispatch(logout());
+    logout();
     onNavigate('/login');
   };
 
@@ -78,39 +96,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
 
     try {
       if (academicSubTab === 'years') {
-        await createAcademicYearApi({
+        await createAcademicYearMutation.mutateAsync({
           yearName: formData.get('yearName') as string,
           startDate: formData.get('startDate') as string,
           endDate: formData.get('endDate') as string,
           status: 'ACTIVE',
-        }).unwrap();
+        });
       } else if (academicSubTab === 'departments') {
-        await createDepartmentApi({
+        await createDepartmentMutation.mutateAsync({
           departmentName: formData.get('departmentName') as string,
           departmentCode: formData.get('departmentCode') as string,
           status: 'ACTIVE',
-        }).unwrap();
+        });
       } else if (academicSubTab === 'courses') {
-        await createCourseApi({
+        await createCourseMutation.mutateAsync({
           courseTitle: formData.get('courseTitle') as string,
           courseCode: formData.get('courseCode') as string,
           credits: Number(formData.get('credits') || 3),
           departmentId: Number(formData.get('departmentId') || (liveDepartments[0]?.id || 1)),
           courseType: 'THEORY',
           status: 'ACTIVE',
-        }).unwrap();
+        });
       } else if (academicSubTab === 'sections') {
-        await createClassSectionApi({
+        await createClassSectionMutation.mutateAsync({
           sectionName: formData.get('sectionName') as string,
           capacity: Number(formData.get('capacity') || 50),
           courseId: Number(formData.get('courseId') || (liveCourses[0]?.id || 1)),
           status: 'ACTIVE',
-        }).unwrap();
+        });
       }
-      setShowAddModal(false);
-    } catch (err) {
-      // Backend handles validation
-      setShowAddModal(false);
+      setShowAddAcademicModal(false);
+    } catch {
+      setShowAddAcademicModal(false);
     }
   };
 
@@ -182,7 +199,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           <div className="flex items-center gap-2">
             <h2 className="font-bold text-sm text-[#171717]">Operations Command Console</h2>
             <span className="text-[10px] bg-orange-50 text-[#F97316] font-bold px-2 py-0.5 rounded-full border border-orange-200">
-              Live DB Active
+              TanStack Query Active
             </span>
           </div>
 
@@ -209,7 +226,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                   </span>
                   <h3 className="text-xl font-black">EduConflux Academic Command Center</h3>
                   <p className="text-xs text-orange-100 font-normal leading-relaxed">
-                    Provision academic periods, register departments, manage courses and monitor live institutional telemetry.
+                    Provision academic periods, register departments, manage courses, and review real-time roster databases.
                   </p>
                 </div>
                 <div className="absolute right-[-5%] bottom-[-20%] text-white/10 text-9xl font-black select-none pointer-events-none">
@@ -234,20 +251,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 ))}
               </div>
 
-              {/* Quick Actions */}
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#737373]">Live Operations Quickstart</h3>
-                  <button 
-                    onClick={() => setActiveTab('academic')} 
-                    className="text-xs font-bold text-[#F97316] hover:underline cursor-pointer"
+              {/* Live Directory Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#737373]">Student Roster</span>
+                    <h4 className="text-2xl font-black text-[#171717]">
+                      {isLoadingStudents ? '...' : liveStudents.length} Registered
+                    </h4>
+                    <p className="text-xs text-[#525252]">Active students enrolled across institutional programs.</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('students')}
+                    className="px-4 py-2 bg-orange-50 text-[#F97316] hover:bg-orange-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                   >
-                    Open Academic Setup →
+                    View Students →
                   </button>
                 </div>
-                <p className="text-xs text-[#525252]">
-                  Your database is ready to register departments, configure academic terms, and organize course offerings for upcoming semesters.
-                </p>
+
+                <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#737373]">Faculty Members</span>
+                    <h4 className="text-2xl font-black text-[#171717]">
+                      {isLoadingFaculty ? '...' : liveFaculty.length} Registered
+                    </h4>
+                    <p className="text-xs text-[#525252]">Faculty and instructors assigned across departments.</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('faculty')}
+                    className="px-4 py-2 bg-orange-50 text-[#F97316] hover:bg-orange-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    View Faculty →
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -262,7 +298,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
 
                 <button 
-                  onClick={() => setShowAddModal(true)}
+                  onClick={() => setShowAddAcademicModal(true)}
                   className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
                 >
                   <Plus className="w-4 h-4" /> Add Record
@@ -292,7 +328,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 ))}
               </div>
 
-              {/* Academic Years Tab */}
+              {/* Academic Years */}
               {academicSubTab === 'years' && (
                 <div>
                   {liveAcademicYears.length === 0 ? (
@@ -330,7 +366,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
               )}
 
-              {/* Departments Tab */}
+              {/* Departments */}
               {academicSubTab === 'departments' && (
                 <div>
                   {liveDepartments.length === 0 ? (
@@ -366,7 +402,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
               )}
 
-              {/* Courses Tab */}
+              {/* Courses */}
               {academicSubTab === 'courses' && (
                 <div>
                   {liveCourses.length === 0 ? (
@@ -404,7 +440,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
               )}
 
-              {/* Class Sections Tab */}
+              {/* Class Sections */}
               {academicSubTab === 'sections' && (
                 <div>
                   {liveClassSections.length === 0 ? (
@@ -440,17 +476,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                 </div>
               )}
 
-              {/* Other Subtabs */}
+              {/* Programs & Semesters */}
               {(academicSubTab === 'programs' || academicSubTab === 'semesters') && (
                 <div className="bg-white border border-[#E5E5E5] p-10 rounded-2xl text-center space-y-2">
                   <FolderTree className="w-10 h-10 text-[#737373] mx-auto opacity-40" />
-                  <h4 className="font-bold text-xs text-[#171717]">{academicSubTab.toUpperCase()} Data Management</h4>
-                  <p className="text-[11px] text-[#737373] max-w-sm mx-auto">Dynamic record manager synced with institutional database.</p>
+                  <h4 className="font-bold text-xs text-[#171717]">{academicSubTab.toUpperCase()} Records</h4>
+                  <p className="text-[11px] text-[#737373] max-w-sm mx-auto">
+                    {academicSubTab === 'programs' ? `${livePrograms.length} programs configured.` : `${liveSemesters.length} semesters active.`}
+                  </p>
                 </div>
               )}
 
-              {/* Create Modal */}
-              {showAddModal && (
+              {/* Add Academic Modal */}
+              {showAddAcademicModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                   <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-[#E5E5E5] shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
                     <h3 className="font-bold text-sm text-[#171717]">Create {academicSubTab.toUpperCase()} Record</h3>
@@ -520,7 +558,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
                       )}
 
                       <div className="flex gap-2 justify-end pt-3">
-                        <button type="button" onClick={() => setShowAddModal(false)} className="px-3 py-1.5 border border-[#E5E5E5] text-xs font-semibold rounded-lg cursor-pointer">Cancel</button>
+                        <button type="button" onClick={() => setShowAddAcademicModal(false)} className="px-3 py-1.5 border border-[#E5E5E5] text-xs font-semibold rounded-lg cursor-pointer">Cancel</button>
                         <button type="submit" className="px-4 py-1.5 bg-[#F97316] text-white text-xs font-semibold rounded-lg cursor-pointer hover:bg-[#EA580C]">Save Record</button>
                       </div>
                     </form>
@@ -533,36 +571,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           {/* Students Directory Tab */}
           {activeTab === 'students' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-[#171717]">Student Directory</h2>
-                <p className="text-xs text-[#737373]">Live registered student accounts in institutional database</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">Student Directory</h2>
+                  <p className="text-xs text-[#737373]">Live registered student accounts connected with backend StudentController</p>
+                </div>
+
+                <button 
+                  onClick={() => setShowAddStudentModal(true)}
+                  className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" /> Add Student
+                </button>
               </div>
 
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                <Users className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                <h4 className="font-bold text-sm text-[#171717]">Registered Students Sync</h4>
-                <p className="text-xs text-[#737373] max-w-sm mx-auto">
-                  Students who register and log in will be tracked in this workspace.
-                </p>
-              </div>
+              <StudentDirectoryTable
+                students={liveStudents}
+                isLoading={isLoadingStudents}
+                onDeleteStudent={(id) => deleteStudentMutation.mutate(id)}
+              />
+
+              <CreateStudentModal
+                isOpen={showAddStudentModal}
+                onClose={() => setShowAddStudentModal(false)}
+                onSubmit={async (data) => {
+                  await createStudentMutation.mutateAsync(data);
+                }}
+              />
             </div>
           )}
 
           {/* Faculty Directory Tab */}
           {activeTab === 'faculty' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-[#171717]">Faculty Directory</h2>
-                <p className="text-xs text-[#737373]">Live registered faculty accounts in institutional database</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">Faculty Directory</h2>
+                  <p className="text-xs text-[#737373]">Live registered faculty accounts connected with backend FacultyController</p>
+                </div>
+
+                <button 
+                  onClick={() => setShowAddFacultyModal(true)}
+                  className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" /> Add Faculty
+                </button>
               </div>
 
-              <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                <GraduationCap className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                <h4 className="font-bold text-sm text-[#171717]">Registered Faculty Sync</h4>
-                <p className="text-xs text-[#737373] max-w-sm mx-auto">
-                  Faculty who register and log in will be tracked in this workspace.
-                </p>
-              </div>
+              <FacultyDirectoryTable
+                faculty={liveFaculty}
+                isLoading={isLoadingFaculty}
+                onDeleteFaculty={(id) => deleteFacultyMutation.mutate(id)}
+              />
+
+              <CreateFacultyModal
+                isOpen={showAddFacultyModal}
+                onClose={() => setShowAddFacultyModal(false)}
+                onSubmit={async (data) => {
+                  await createFacultyMutation.mutateAsync(data);
+                }}
+              />
             </div>
           )}
         </div>

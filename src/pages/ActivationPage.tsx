@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Logo } from '../components/common/Logo';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
-import { useActivateAccountMutation } from '../store/api/authApi';
+import { useActivateMutation } from '../features/auth/hooks/useAuthMutations';
 import { KeyRound, ShieldAlert, CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface ActivationPageProps {
@@ -16,7 +16,7 @@ export const ActivationPage: React.FC<ActivationPageProps> = ({ onNavigate }) =>
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [activateApi] = useActivateAccountMutation();
+  const activateMutation = useActivateMutation();
 
   const handleActivate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +28,7 @@ export const ActivationPage: React.FC<ActivationPageProps> = ({ onNavigate }) =>
     
     setStatus('loading');
     try {
-      await activateApi({ token: token.trim() }).unwrap();
+      await activateMutation.mutateAsync({ token: token.trim() });
       setStatus('success');
     } catch (err: any) {
       // Fallback for demo token
