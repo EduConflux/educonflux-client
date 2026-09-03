@@ -4,13 +4,13 @@ import { useAuth } from '../features/auth/context/AuthContext';
 import { useCourses, useAcademicYears, useSemesters } from '../features/academic/hooks/useAcademic';
 import { useStudentAttendance } from '../features/attendance/hooks/useAttendance';
 import { useStudentWeeklyTimetable } from '../features/timetable/hooks/useTimetable';
-import { useChatHistory } from '../features/classrooms/hooks/useClassrooms';
+import { useStudentClassrooms } from '../features/classrooms/hooks/useClassrooms';
+import { ClassroomHub } from '../features/classrooms/components/ClassroomHub';
 
 // Reusable Dashboard & Feature Components
 import { WelcomeBanner } from '../features/dashboard/components/WelcomeBanner';
 import { MetricCard } from '../features/dashboard/components/MetricCard';
 import { CourseCatalogTable } from '../features/academic/components/CourseCatalogTable';
-import { SectionChannelsChatWorkspace } from '../features/classrooms/components/SectionChannelsChatWorkspace';
 
 import { 
   LayoutDashboard, 
@@ -45,9 +45,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
   const { user: authUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
-  // Active Chat Channel state
-  const [activeChannelId, setActiveChannelId] = useState<number>(1);
-  const [chatInputText, setChatInputText] = useState('');
+  const [activeClassroomId, setActiveClassroomId] = useState<number>(1);
 
   // User details from AuthContext
   const studentId = authUser?.id || 1;
@@ -64,14 +62,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
   const { data: liveTimetableEntries = [] } = useStudentWeeklyTimetable();
   const { data: liveAcademicYears = [] } = useAcademicYears();
   const { data: liveSemesters = [] } = useSemesters();
-  const { data: liveChatHistory = [] } = useChatHistory(activeChannelId);
+  const { data: studentEnrolledClassrooms = [] } = useStudentClassrooms();
 
-  // Local fallback chat messages for active channel
-  const [localChatMessages, setLocalChatMessages] = useState([
-    { id: 1, sender: 'Dr. Sharma', text: 'Welcome everyone to the CS101 section channel! Post your lab queries here.', time: '10:15 AM', isSelf: false },
-    { id: 2, sender: 'Jane Smith', text: 'Thank you professor. Is the project submission extended to Friday?', time: '10:20 AM', isSelf: false },
-    { id: 3, sender: userName, text: 'I have uploaded my Algorithms assignment file into the submission portal.', time: '10:45 AM', isSelf: true }
-  ]);
+  const displayStudentClassrooms = studentEnrolledClassrooms.length > 0
+    ? studentEnrolledClassrooms.map(c => ({
+        id: c.classroomId,
+        name: c.classroomName,
+        courseTitle: c.courseName || c.courseCode,
+        sectionCode: c.classSectionName,
+        facultyName: c.facultyName,
+      }))
+    : [
+        { id: 1, name: 'CS101 - Algorithms Sec A', courseTitle: 'Introduction to Algorithms', sectionCode: 'SEC-A', facultyName: 'Dr. Sharma' },
+        { id: 2, name: 'CS202 - Databases Sec B', courseTitle: 'Database Management Systems', sectionCode: 'SEC-B', facultyName: 'Dr. Sharma' },
+        { id: 3, name: 'CS401 - Artificial Intelligence', courseTitle: 'AI & Neural Networks', sectionCode: 'SEC-C', facultyName: 'Prof. Davis' },
+        { id: 4, name: 'CS305 - Operating Systems', courseTitle: 'OS Concurrency & Kernels', sectionCode: 'SEC-A', facultyName: 'Dr. Sharma' }
+      ];
 
   const attendancePercentage = attendanceSummary?.percentage !== undefined ? attendanceSummary.percentage : 87;
   const presentCount = attendanceSummary?.presentCount !== undefined ? attendanceSummary.presentCount : 18;
@@ -81,40 +87,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
   const totalTimetableSlots = liveTimetableEntries.length || 18;
   const activeAcademicYearName = liveAcademicYears[0]?.yearName || 'Academic Term 2025-2026';
   const activeSemesterName = liveSemesters[0]?.semesterName || 'Spring Semester';
-
-  const defaultChannels = [
-    { id: 1, name: 'cs101-algorithms-sec-a', courseTitle: 'CS101: Introduction to Algorithms', instructor: 'Dr. Sharma', unread: 2 },
-    { id: 2, name: 'cs202-databases-sec-b', courseTitle: 'CS202: Database Management Systems', instructor: 'Dr. Sharma', unread: 0 },
-    { id: 3, name: 'cs401-ai-sec-c', courseTitle: 'CS401: Artificial Intelligence', instructor: 'Prof. Davis', unread: 5 },
-    { id: 4, name: 'cs305-os-sec-a', courseTitle: 'CS305: Operating Systems', instructor: 'Dr. Sharma', unread: 1 }
-  ];
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInputText.trim()) return;
-
-    const newMsg = {
-      id: Date.now(),
-      sender: userName,
-      text: chatInputText.trim(),
-      time: 'Just now',
-      isSelf: true
-    };
-
-    setLocalChatMessages(prev => [...prev, newMsg]);
-    setChatInputText('');
-  };
-
-  const allDisplayMessages = [
-    ...localChatMessages,
-    ...liveChatHistory.map(m => ({
-      id: m.id,
-      sender: m.senderName,
-      text: m.messageContent,
-      time: m.timestamp,
-      isSelf: m.senderId === studentId,
-    })),
-  ];
 
   const handleLogout = () => {
     logout();
@@ -252,7 +224,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
                 />
                 <MetricCard
                   title="SECTION CHANNELS"
-                  value={String(defaultChannels.length)}
+                  value={String(displayStudentClassrooms.length)}
                   sub="Discussion workspaces"
                   icon={<MessageSquare className="w-5 h-5 text-purple-600" />}
                   color="text-purple-600"
@@ -273,16 +245,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }
             </div>
           )}
 
-          {/* Channels & Chat Tab */}
+          {/* Channels & Chat Workspace Hub */}
           {activeTab === 'channels' && (
-            <SectionChannelsChatWorkspace
-              channelList={defaultChannels}
-              activeChannelId={activeChannelId}
-              onSelectChannel={setActiveChannelId}
-              chatMessages={allDisplayMessages}
-              chatInputText={chatInputText}
-              onChatInputChange={setChatInputText}
-              onSendMessage={handleSendMessage}
+            <ClassroomHub
+              role="student"
+              classrooms={displayStudentClassrooms}
+              activeClassroomId={activeClassroomId}
+              onSelectClassroom={setActiveClassroomId}
+              currentUser={{ id: studentId, name: userName, email: authUser?.email }}
             />
           )}
 
