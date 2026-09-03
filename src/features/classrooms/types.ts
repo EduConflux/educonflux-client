@@ -19,6 +19,33 @@ export interface Classroom {
   updatedAt?: string;
 }
 
+export interface StudentClassroomResponse {
+  classroomId: number;
+  classroomName: string;
+  description?: string;
+  facultyId?: number;
+  facultyName?: string;
+  courseId?: number;
+  courseCode?: string;
+  courseName?: string;
+  classSectionId?: number;
+  classSectionName?: string;
+  status?: string;
+}
+
+export interface MembershipResponse {
+  membershipId: number;
+  classroomId: number;
+  classroomName?: string;
+  studentId: number;
+  studentName: string;
+  enrollmentNumber?: string;
+  email: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'REMOVED';
+  joinedAt?: string;
+  removedAt?: string;
+}
+
 export interface ClassroomRequest {
   classSectionId?: number;
   courseOfferingId?: number;

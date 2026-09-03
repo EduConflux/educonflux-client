@@ -4,29 +4,49 @@ import type {
   ClassroomRequest, 
   ClassroomPost, 
   CreatePostRequest, 
-  ChatMessage 
+  ChatMessage,
+  StudentClassroomResponse,
+  MembershipResponse,
 } from '../types';
 
 export const classroomApi = {
-  // Faculty Classrooms
-  getMyClassrooms: () => apiClient.get<Classroom[]>('/faculty/classrooms'),
-  getClassroomById: (id: number) => apiClient.get<Classroom>(`/faculty/classrooms/${id}`),
-  createClassroom: (data: ClassroomRequest) => apiClient.post<Classroom>('/faculty/classrooms', data),
+  // Faculty: Get assigned classrooms
+  getFacultyClassrooms: () =>
+    apiClient.get<Classroom[]>('/faculty/classrooms'),
 
-  // Posts
-  createPost: (classroomId: number, data: CreatePostRequest) => 
-    apiClient.post<ClassroomPost>(`/faculty/classrooms/${classroomId}/posts`, data),
-  
-  getFacultyPosts: (classroomId: number, page: number = 0, size: number = 20) => 
-    apiClient.get<any>(`/faculty/classrooms/${classroomId}/posts?page=${page}&size=${size}`),
-  
-  getStudentPosts: (classroomId: number, page: number = 0, size: number = 20) => 
-    apiClient.get<any>(`/student/classrooms/${classroomId}/posts?page=${page}&size=${size}`),
+  // Faculty: Create a classroom
+  createClassroom: (request: ClassroomRequest) =>
+    apiClient.post<Classroom>('/faculty/classrooms', request),
 
-  // Chat History
-  getChatHistory: (classroomId: number) => 
+  // Student: Get enrolled classrooms
+  getMyClassrooms: () =>
+    apiClient.get<StudentClassroomResponse[]>('/student/classrooms'),
+
+  // Faculty: Get classroom members (students)
+  getClassroomMembers: (classroomId: number) =>
+    apiClient.get<MembershipResponse[]>(`/faculty/classrooms/${classroomId}/members`),
+
+  // Faculty: Remove student from classroom
+  removeStudentFromClassroom: (classroomId: number, studentId: number) =>
+    apiClient.patch<void>(`/faculty/classrooms/${classroomId}/members/${studentId}/remove`),
+
+  // Faculty: Get posts for classroom
+  getFacultyClassroomPosts: async (classroomId: number, page = 0, size = 20): Promise<ClassroomPost[]> => {
+    const res = await apiClient.get<any>(`/faculty/classrooms/${classroomId}/posts?page=${page}&size=${size}`);
+    return Array.isArray(res) ? res : (res?.content || []);
+  },
+
+  // Student: Get posts for classroom
+  getStudentClassroomPosts: async (classroomId: number, page = 0, size = 20): Promise<ClassroomPost[]> => {
+    const res = await apiClient.get<any>(`/student/classrooms/${classroomId}/posts?page=${page}&size=${size}`);
+    return Array.isArray(res) ? res : (res?.content || []);
+  },
+
+  // Faculty: Create post in classroom
+  createPost: (classroomId: number, request: CreatePostRequest) =>
+    apiClient.post<ClassroomPost>(`/faculty/classrooms/${classroomId}/posts`, request),
+
+  // Chat: Get classroom chat history
+  getChatHistory: (classroomId: number) =>
     apiClient.get<ChatMessage[]>(`/classrooms/${classroomId}/chat`),
-  
-  getPrivateChat: (classroomId: number, userId: number) => 
-    apiClient.get<ChatMessage[]>(`/classrooms/${classroomId}/chat/private/${userId}`),
 };

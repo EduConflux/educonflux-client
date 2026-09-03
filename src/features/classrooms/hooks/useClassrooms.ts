@@ -6,15 +6,32 @@ import type { ClassroomRequest, CreatePostRequest } from '../types';
 export function useFacultyClassrooms() {
   return useQuery({
     queryKey: queryKeys.classrooms.facultyList(),
+    queryFn: classroomApi.getFacultyClassrooms,
+  });
+}
+
+export function useStudentClassrooms() {
+  return useQuery({
+    queryKey: queryKeys.classrooms.studentList(),
     queryFn: classroomApi.getMyClassrooms,
   });
 }
 
-export function useClassroomDetail(id: number) {
+export function useClassroomMembers(classroomId: number) {
   return useQuery({
-    queryKey: queryKeys.classrooms.detail(id),
-    queryFn: () => classroomApi.getClassroomById(id),
-    enabled: id > 0,
+    queryKey: queryKeys.classrooms.members(classroomId),
+    queryFn: () => classroomApi.getClassroomMembers(classroomId),
+    enabled: classroomId > 0,
+  });
+}
+
+export function useRemoveStudentFromClassroom(classroomId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: number) => classroomApi.removeStudentFromClassroom(classroomId, studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classrooms.members(classroomId) });
+    },
   });
 }
 
@@ -31,10 +48,7 @@ export function useCreateClassroom() {
 export function useFacultyClassroomPosts(classroomId: number) {
   return useQuery({
     queryKey: queryKeys.classrooms.facultyPosts(classroomId),
-    queryFn: async () => {
-      const res = await classroomApi.getFacultyPosts(classroomId);
-      return res?.content || (Array.isArray(res) ? res : []);
-    },
+    queryFn: () => classroomApi.getFacultyClassroomPosts(classroomId),
     enabled: classroomId > 0,
   });
 }
@@ -42,10 +56,7 @@ export function useFacultyClassroomPosts(classroomId: number) {
 export function useStudentClassroomPosts(classroomId: number) {
   return useQuery({
     queryKey: queryKeys.classrooms.studentPosts(classroomId),
-    queryFn: async () => {
-      const res = await classroomApi.getStudentPosts(classroomId);
-      return res?.content || (Array.isArray(res) ? res : []);
-    },
+    queryFn: () => classroomApi.getStudentClassroomPosts(classroomId),
     enabled: classroomId > 0,
   });
 }
@@ -66,6 +77,6 @@ export function useChatHistory(classroomId: number) {
     queryKey: queryKeys.classrooms.chatHistory(classroomId),
     queryFn: () => classroomApi.getChatHistory(classroomId),
     enabled: classroomId > 0,
-    refetchInterval: 5000, // background polling fallback for real-time
+    refetchInterval: 5000,
   });
 }

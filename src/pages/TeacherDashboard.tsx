@@ -4,22 +4,14 @@ import { useAuth } from '../features/auth/context/AuthContext';
 import { useClassSections } from '../features/academic/hooks/useAcademic';
 import { useFacultyAttendance, useMarkAttendance } from '../features/attendance/hooks/useAttendance';
 import { useFacultyTodayTimetable } from '../features/timetable/hooks/useTimetable';
-import { 
-  useFacultyClassrooms, 
-  useFacultyClassroomPosts, 
-  useCreatePost,
-  useChatHistory 
-} from '../features/classrooms/hooks/useClassrooms';
-import type { ClassroomPost } from '../features/classrooms/types';
+import { useFacultyClassrooms } from '../features/classrooms/hooks/useClassrooms';
+import { ClassroomHub } from '../features/classrooms/components/ClassroomHub';
 import { 
   LayoutDashboard, 
   BookOpen, 
   CheckSquare, 
   LogOut, 
-  Send, 
-  ChevronRight,
-  Sparkles,
-  Plus
+  ChevronRight
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -39,7 +31,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'attendance' | 'classrooms'>('dashboard');
   const [selectedClassroom, setSelectedClassroom] = useState<number | null>(null);
-  const [classroomTab, setClassroomTab] = useState<'feed' | 'chat'>('feed');
 
   // TanStack Query Live Queries
   const { data: liveSections = [], isLoading: isLoadingSections } = useClassSections();
@@ -54,71 +45,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
   const { data: liveAttendance = [] } = useFacultyAttendance(activeTimetableEntryId, attendanceDate);
   const markAttendanceMutation = useMarkAttendance();
 
-  // Active Classroom Feed
-  const activeClassroomId = selectedClassroom || (liveClassrooms[0]?.id || liveSections[0]?.id || 1);
-  const { data: classroomPosts = [] } = useFacultyClassroomPosts(activeClassroomId);
-  const createPostMutation = useCreatePost(activeClassroomId);
-
-  // Group chat
-  const { data: remoteChat = [] } = useChatHistory(activeClassroomId);
-  const [localChatMessages, setLocalChatMessages] = useState<{ id: number; sender: string; text: string; time: string }[]>([]);
-  const [newMessageText, setNewMessageText] = useState('');
-  const [newPostTitle, setNewPostTitle] = useState('');
-  const [newPostContent, setNewPostContent] = useState('');
-  const [showPostModal, setShowPostModal] = useState(false);
-
   // Combined classrooms list
   const displayClassrooms = liveClassrooms.length > 0 
     ? liveClassrooms 
-    : liveSections.map(s => ({
-        id: s.id,
-        name: s.sectionName,
-        courseTitle: s.courseTitle || 'Course Section',
-        description: `Capacity: ${s.capacity} Students`,
-      }));
-
-  const activeClassroom = displayClassrooms.find(c => c.id === selectedClassroom) || displayClassrooms[0];
+    : (liveSections.length > 0
+        ? liveSections.map(s => ({
+            id: s.id,
+            name: s.sectionName,
+            courseTitle: s.courseTitle || 'Course Section',
+            description: `Capacity: ${s.capacity} Students`,
+          }))
+        : [
+            { id: 1, name: 'CS101 - Algorithms Sec A', courseTitle: 'Introduction to Algorithms', description: 'Capacity: 60 Students' },
+            { id: 2, name: 'CS202 - Databases Sec B', courseTitle: 'Database Management Systems', description: 'Capacity: 50 Students' },
+            { id: 3, name: 'CS305 - Operating Systems Sec A', courseTitle: 'Operating Systems & Kernels', description: 'Capacity: 45 Students' },
+          ]);
 
   const handleLogout = () => {
     logout();
     onNavigate('/login');
   };
-
-  const handleCreatePost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPostContent.trim() || !newPostTitle.trim()) return;
-
-    try {
-      await createPostMutation.mutateAsync({
-        title: newPostTitle.trim(),
-        content: newPostContent.trim(),
-        type: 'ANNOUNCEMENT',
-      });
-      setNewPostTitle('');
-      setNewPostContent('');
-      setShowPostModal(false);
-    } catch {
-      setShowPostModal(false);
-    }
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessageText.trim()) return;
-    const newMsg = {
-      id: Date.now(),
-      sender: teacherName,
-      text: newMessageText.trim(),
-      time: 'Just now',
-    };
-    setLocalChatMessages(prev => [...prev, newMsg]);
-    setNewMessageText('');
-  };
-
-  const allChatMessages = [
-    ...remoteChat.map(m => ({ id: m.id, sender: m.senderName, text: m.messageContent, time: m.timestamp })),
-    ...localChatMessages,
-  ];
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] flex text-[#171717] font-sans selection:bg-[#F97316] selection:text-white">
@@ -349,196 +295,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">
-                    {selectedClassroom ? activeClassroom?.name : 'My Classrooms'}
-                  </h2>
-                  <p className="text-xs text-[#737373]">
-                    {selectedClassroom ? (activeClassroom?.courseTitle || 'Classroom Stream') : 'Manage your teaching streams, posts, and student discussion'}
-                  </p>
+                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">My Classroom Workspaces</h2>
+                  <p className="text-xs text-[#737373]">Collaborative hub for class stream, assignments, file library, and roster</p>
                 </div>
-
-                {selectedClassroom && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowPostModal(true)}
-                      className="flex items-center gap-1.5 bg-[#F97316] text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-[#EA580C] cursor-pointer shadow-xs"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Create Announcement</span>
-                    </button>
-                    <button
-                      onClick={() => setSelectedClassroom(null)}
-                      className="text-xs text-[#737373] hover:text-[#171717] border border-[#E5E5E5] px-3 py-2 rounded-xl cursor-pointer"
-                    >
-                      ← Back to Classrooms
-                    </button>
-                  </div>
-                )}
               </div>
 
-              {!selectedClassroom ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {displayClassrooms.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => setSelectedClassroom(c.id)}
-                      className="bg-white border border-[#E5E5E5] hover:border-[#F97316] p-6 rounded-2xl shadow-xs hover:shadow-md transition-all cursor-pointer space-y-4 group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#F97316] flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
-                          <BookOpen className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                          Active Stream
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-sm text-[#171717] group-hover:text-[#F97316] transition-colors">{c.name}</h3>
-                        <p className="text-xs text-[#737373] line-clamp-2">{c.courseTitle || c.description || 'Academic Section'}</p>
-                      </div>
-                      <div className="pt-3 border-t border-[#E5E5E5] flex items-center justify-between text-xs text-[#F97316] font-bold">
-                        <span>Open Workspace</span>
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Subtabs for selected classroom */}
-                  <div className="flex border-b border-[#E5E5E5] gap-4">
-                    <button
-                      onClick={() => setClassroomTab('feed')}
-                      className={`pb-3 text-xs font-bold border-b-2 cursor-pointer transition-all ${
-                        classroomTab === 'feed' ? 'border-[#F97316] text-[#F97316]' : 'border-transparent text-[#737373]'
-                      }`}
-                    >
-                      Announcements & Feed ({classroomPosts.length})
-                    </button>
-                    <button
-                      onClick={() => setClassroomTab('chat')}
-                      className={`pb-3 text-xs font-bold border-b-2 cursor-pointer transition-all ${
-                        classroomTab === 'chat' ? 'border-[#F97316] text-[#F97316]' : 'border-transparent text-[#737373]'
-                      }`}
-                    >
-                      Section Chat Stream
-                    </button>
-                  </div>
-
-                  {classroomTab === 'feed' && (
-                    <div className="space-y-4">
-                      {classroomPosts.length === 0 ? (
-                        <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-2">
-                          <Sparkles className="w-8 h-8 text-[#737373] mx-auto opacity-50" />
-                          <h4 className="font-bold text-sm text-[#171717]">No Announcements Posted Yet</h4>
-                          <p className="text-xs text-[#737373]">Click "Create Announcement" to post updates to your students.</p>
-                        </div>
-                      ) : (
-                        classroomPosts.map((post: ClassroomPost) => (
-                          <div key={post.id} className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-[#171717]">{post.title}</span>
-                              <span className="text-[10px] font-bold text-[#F97316] bg-orange-50 px-2 py-0.5 rounded-full">
-                                {post.type}
-                              </span>
-                            </div>
-                            <p className="text-xs text-[#525252] leading-relaxed">{post.content}</p>
-                            <span className="text-[10px] text-[#737373] block pt-2 border-t border-[#F7F7F7]">
-                              Posted by {post.facultyName || teacherName}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-
-                  {classroomTab === 'chat' && (
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl flex flex-col h-[500px] overflow-hidden">
-                      <div className="flex-1 p-5 overflow-y-auto space-y-3">
-                        {allChatMessages.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-xs text-[#737373]">
-                            No chat messages in this section.
-                          </div>
-                        ) : (
-                          allChatMessages.map((msg) => (
-                            <div key={msg.id} className="p-3 bg-[#F7F7F7] rounded-xl text-xs space-y-1">
-                              <div className="flex items-center justify-between text-[11px] font-bold text-[#171717]">
-                                <span>{msg.sender}</span>
-                                <span className="text-[9px] text-[#737373]">{msg.time}</span>
-                              </div>
-                              <p className="text-[#525252]">{msg.text}</p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-
-                      <form onSubmit={handleSendMessage} className="p-4 border-t border-[#E5E5E5] flex gap-2">
-                        <input
-                          value={newMessageText}
-                          onChange={(e) => setNewMessageText(e.target.value)}
-                          placeholder="Type a message to the classroom..."
-                          className="flex-1 bg-[#F7F7F7] border border-[#E5E5E5] rounded-xl px-4 py-2.5 text-xs text-[#171717] focus:outline-hidden focus:border-[#F97316]"
-                        />
-                        <button
-                          type="submit"
-                          disabled={!newMessageText.trim()}
-                          className="px-4 py-2.5 bg-[#F97316] text-white rounded-xl hover:bg-[#EA580C] disabled:opacity-40 transition-colors cursor-pointer"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Create Post Modal */}
-              {showPostModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in">
-                  <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-[#E5E5E5] shadow-2xl space-y-4">
-                    <h3 className="font-bold text-sm text-[#171717]">Publish Classroom Announcement</h3>
-                    <form onSubmit={handleCreatePost} className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Title</label>
-                        <input
-                          required
-                          value={newPostTitle}
-                          onChange={(e) => setNewPostTitle(e.target.value)}
-                          className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs"
-                          placeholder="e.g. Midterm Examination Schedule"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Content</label>
-                        <textarea
-                          required
-                          rows={4}
-                          value={newPostContent}
-                          onChange={(e) => setNewPostContent(e.target.value)}
-                          className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs"
-                          placeholder="Write announcement details..."
-                        />
-                      </div>
-                      <div className="flex gap-2 justify-end pt-3">
-                        <button
-                          type="button"
-                          onClick={() => setShowPostModal(false)}
-                          className="px-3 py-1.5 border border-[#E5E5E5] text-xs font-semibold rounded-lg cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={createPostMutation.isPending}
-                          className="px-4 py-1.5 bg-[#F97316] text-white text-xs font-semibold rounded-lg hover:bg-[#EA580C] cursor-pointer shadow-xs disabled:opacity-50"
-                        >
-                          {createPostMutation.isPending ? 'Publishing...' : 'Publish'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
+              <ClassroomHub
+                role="faculty"
+                classrooms={displayClassrooms.map(c => ({
+                  id: c.id,
+                  name: c.name,
+                  courseTitle: c.courseTitle,
+                  facultyName: teacherName,
+                }))}
+                activeClassroomId={selectedClassroom || displayClassrooms[0]?.id || 1}
+                onSelectClassroom={(id) => setSelectedClassroom(id)}
+                currentUser={{ id: user?.id || 1, name: teacherName, email: user?.email }}
+              />
             </div>
           )}
         </div>
