@@ -1,4 +1,4 @@
-import type { User } from '../store/slices/authSlice';
+import type { User } from '../features/auth/types';
 
 export function parseJwtPayload(token: string): any {
   try {
