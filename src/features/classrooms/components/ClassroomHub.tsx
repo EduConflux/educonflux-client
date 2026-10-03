@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   useFacultyClassroomPosts, 
   useStudentClassroomPosts, 
@@ -6,6 +6,7 @@ import {
   useChatHistory,
   useClassroomMembers 
 } from '../hooks/useClassrooms';
+import { wsManager } from '../../../lib/websocket';
 import { AssignmentList } from '../../assignments/components/AssignmentList';
 import { CreateAssignmentModal } from '../../assignments/components/CreateAssignmentModal';
 import { ClassFilesBrowser } from '../../learning/components/ClassFilesBrowser';
@@ -93,30 +94,56 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
     setShowCreatePost(false);
   };
 
+  useEffect(() => {
+    if (!activeClass?.id) return;
+    let cleanupFn: (() => void) | undefined;
+
+    wsManager
+      .subscribeToClassroom(activeClass.id, (msg) => {
+        setLocalChat((prev) => [
+          ...prev,
+          {
+            id: msg.id || Date.now(),
+            sender: msg.senderName || 'Peer',
+            text: msg.content,
+            time: msg.createdAt
+              ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isSelf: msg.senderId === currentUser.id,
+          },
+        ]);
+      })
+      .then((unsubscribe) => {
+        cleanupFn = unsubscribe;
+      })
+      .catch((err) => {
+        console.warn('WebSocket subscription failed:', err);
+      });
+
+    return () => {
+      if (cleanupFn) cleanupFn();
+    };
+  }, [activeClass?.id, currentUser.id]);
+
   // Handle chat send
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
+    if (!chatMessage.trim() || !activeClass) return;
 
-    setLocalChat(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        sender: currentUser.name,
-        text: chatMessage,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isSelf: true,
-      },
-    ]);
+    const messageText = chatMessage.trim();
     setChatMessage('');
+
+    wsManager.sendGroupMessage(activeClass.id, messageText).catch((err) => {
+      console.warn('Failed to send message over websocket:', err);
+    });
   };
 
   const allChat = [
     ...remoteChat.map(m => ({
       id: m.id,
       sender: m.senderName,
-      text: m.messageContent,
-      time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: m.content || m.messageContent || '',
+      time: (m.createdAt || m.timestamp) ? new Date(m.createdAt || m.timestamp!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
       isSelf: m.senderId === currentUser.id,
     })),
     ...localChat,

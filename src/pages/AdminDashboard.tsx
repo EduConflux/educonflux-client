@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { Logo } from '../components/common/Logo';
 import { useAuth } from '../features/auth/context/AuthContext';
+import { AppShell } from '../components/layout/AppShell';
+import { MetricCard } from '../features/dashboard/components/MetricCard';
+import { useAdminDashboard } from '../features/dashboard/hooks/useDashboard';
 import {
   useAcademicYears,
   useCreateAcademicYear,
+  useUpdateAcademicYearStatus,
   useDepartments,
   useCreateDepartment,
+  useUpdateDepartmentStatus,
   usePrograms,
+  useCreateProgram,
+  useUpdateProgramStatus,
   useSemesters,
+  useCreateSemester,
+  useUpdateSemesterStatus,
   useCourses,
   useCreateCourse,
+  useUpdateCourseStatus,
   useClassSections,
   useCreateClassSection,
+  useUpdateClassSectionStatus,
 } from '../features/academic/hooks/useAcademic';
 import {
   useStudents,
@@ -25,616 +35,960 @@ import { StudentDirectoryTable } from '../features/directory/components/StudentD
 import { FacultyDirectoryTable } from '../features/directory/components/FacultyDirectoryTable';
 import { CreateStudentModal } from '../features/directory/components/CreateStudentModal';
 import { CreateFacultyModal } from '../features/directory/components/CreateFacultyModal';
-import { 
-  LayoutDashboard, 
-  FolderTree, 
-  GraduationCap, 
-  BookOpen, 
-  LogOut, 
-  Plus, 
-  Inbox
+import { UserManagementView } from '../features/users/components/UserManagementView';
+import { CurriculumManagementView } from '../features/curriculum/components/CurriculumManagementView';
+import { Button } from '../components/common/Button';
+import { Modal } from '../components/common/Modal';
+import { Input } from '../components/common/Input';
+import { useToast } from '../components/common/ToastContext';
+import {
+  LayoutDashboard,
+  FolderTree,
+  GraduationCap,
+  BookOpen,
+  Users,
+  Layers,
+  Plus,
+  FileText,
+  School,
 } from 'lucide-react';
+import type { CourseType } from '../features/academic/types';
 
 interface AdminDashboardProps {
-  onNavigate: (route: string) => void;
+  onNavigate?: (route: string) => void;
 }
 
-type TabType = 'dashboard' | 'academic' | 'students' | 'faculty';
+type TabType = 'dashboard' | 'academic' | 'students' | 'faculty' | 'curriculum' | 'users';
+type AcademicSubTab = 'years' | 'departments' | 'programs' | 'semesters' | 'courses' | 'sections';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
-  const { user, logout } = useAuth();
-
-  const adminName = user?.firstName 
-    ? `${user.firstName} ${user.lastName || ''}`.trim() 
-    : (user?.email ? user.email.split('@')[0] : 'Administrator');
-  const adminEmail = user?.email || 'admin@institution.edu';
-  const adminInitials = user?.firstName 
-    ? `${user.firstName[0]}${user.lastName ? user.lastName[0] : ''}` 
-    : (user?.email ? user.email.slice(0, 2).toUpperCase() : 'AD');
+export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
+  const { user } = useAuth();
+  const { success, error } = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [academicSubTab, setAcademicSubTab] = useState<'years' | 'departments' | 'programs' | 'semesters' | 'courses' | 'sections'>('years');
+  const [academicSubTab, setAcademicSubTab] = useState<AcademicSubTab>('years');
+
+  // Modals
   const [showAddAcademicModal, setShowAddAcademicModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
 
-  // TanStack Query Live Endpoints
-  const { data: liveAcademicYears = [], isLoading: isLoadingYears } = useAcademicYears();
-  const { data: liveDepartments = [], isLoading: isLoadingDepts } = useDepartments();
+  // Dashboard Aggregated Metrics
+  const { data: dashboardData } = useAdminDashboard();
+
+  // Academic Live Endpoints
+  const { data: liveAcademicYears = [] } = useAcademicYears();
+  const { data: liveDepartments = [] } = useDepartments();
   const { data: livePrograms = [] } = usePrograms();
   const { data: liveSemesters = [] } = useSemesters();
-  const { data: liveCourses = [], isLoading: isLoadingCourses } = useCourses();
-  const { data: liveClassSections = [], isLoading: isLoadingSections } = useClassSections();
+  const { data: liveCourses = [] } = useCourses();
+  const { data: liveClassSections = [] } = useClassSections();
 
   // Directory Queries
   const { data: liveStudents = [], isLoading: isLoadingStudents } = useStudents();
   const { data: liveFaculty = [], isLoading: isLoadingFaculty } = useFaculty();
 
-  // Mutations
+  // Academic Mutations
   const createAcademicYearMutation = useCreateAcademicYear();
+  const updateYearStatusMutation = useUpdateAcademicYearStatus();
   const createDepartmentMutation = useCreateDepartment();
+  const updateDeptStatusMutation = useUpdateDepartmentStatus();
+  const createProgramMutation = useCreateProgram();
+  const updateProgramStatusMutation = useUpdateProgramStatus();
+  const createSemesterMutation = useCreateSemester();
+  const updateSemesterStatusMutation = useUpdateSemesterStatus();
   const createCourseMutation = useCreateCourse();
+  const updateCourseStatusMutation = useUpdateCourseStatus();
   const createClassSectionMutation = useCreateClassSection();
+  const updateSectionStatusMutation = useUpdateClassSectionStatus();
+
+  // Directory Mutations
   const createStudentMutation = useCreateStudent();
   const deleteStudentMutation = useDeleteStudent();
   const createFacultyMutation = useCreateFaculty();
   const deleteFacultyMutation = useDeleteFaculty();
 
-  const totalActiveYears = liveAcademicYears.length;
-  const totalActiveDepts = liveDepartments.length;
-  const totalActiveCourses = liveCourses.length;
-  const totalActiveSections = liveClassSections.length;
+  // Academic Form State
+  const [yearForm, setYearForm] = useState({ name: '', startDate: '', endDate: '' });
+  const [deptForm, setDeptForm] = useState({ code: '', name: '', description: '' });
+  const [progForm, setProgForm] = useState({ departmentId: 0, code: '', name: '', durationYears: 4, description: '' });
+  const [semForm, setSemForm] = useState({ programId: 0, semesterNumber: 1, name: '' });
+  const [courseForm, setCourseForm] = useState({
+    departmentId: 0,
+    programId: 0,
+    semesterId: 0,
+    code: '',
+    name: '',
+    credits: 3,
+    courseType: 'CORE' as CourseType,
+    description: '',
+  });
+  const [sectionForm, setSectionForm] = useState({ semesterId: 0, name: '', description: '' });
 
-  const handleLogout = () => {
-    logout();
-    onNavigate('/login');
-  };
-
-  const handleCreateAcademicRecord = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateAcademicRecord = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-
     try {
       if (academicSubTab === 'years') {
-        await createAcademicYearMutation.mutateAsync({
-          yearName: formData.get('yearName') as string,
-          startDate: formData.get('startDate') as string,
-          endDate: formData.get('endDate') as string,
-          status: 'ACTIVE',
-        });
+        await createAcademicYearMutation.mutateAsync(yearForm);
+        success('Academic Year Created', `Year "${yearForm.name}" created successfully.`);
+        setYearForm({ name: '', startDate: '', endDate: '' });
       } else if (academicSubTab === 'departments') {
-        await createDepartmentMutation.mutateAsync({
-          departmentName: formData.get('departmentName') as string,
-          departmentCode: formData.get('departmentCode') as string,
-          status: 'ACTIVE',
-        });
+        await createDepartmentMutation.mutateAsync(deptForm);
+        success('Department Created', `Department "${deptForm.name}" created.`);
+        setDeptForm({ code: '', name: '', description: '' });
+      } else if (academicSubTab === 'programs') {
+        if (!progForm.departmentId) {
+          error('Validation', 'Please select a department.');
+          return;
+        }
+        await createProgramMutation.mutateAsync(progForm);
+        success('Program Created', `Degree program "${progForm.name}" created.`);
+        setProgForm({ departmentId: 0, code: '', name: '', durationYears: 4, description: '' });
+      } else if (academicSubTab === 'semesters') {
+        if (!semForm.programId) {
+          error('Validation', 'Please select a program.');
+          return;
+        }
+        await createSemesterMutation.mutateAsync(semForm);
+        success('Semester Created', `Semester "${semForm.name}" created.`);
+        setSemForm({ programId: 0, semesterNumber: 1, name: '' });
       } else if (academicSubTab === 'courses') {
-        await createCourseMutation.mutateAsync({
-          courseTitle: formData.get('courseTitle') as string,
-          courseCode: formData.get('courseCode') as string,
-          credits: Number(formData.get('credits') || 3),
-          departmentId: Number(formData.get('departmentId') || (liveDepartments[0]?.id || 1)),
-          courseType: 'THEORY',
-          status: 'ACTIVE',
+        if (!courseForm.departmentId || !courseForm.programId || !courseForm.semesterId) {
+          error('Validation', 'Please select Department, Program, and Semester.');
+          return;
+        }
+        await createCourseMutation.mutateAsync(courseForm);
+        success('Course Created', `Course "${courseForm.name}" created.`);
+        setCourseForm({
+          departmentId: 0,
+          programId: 0,
+          semesterId: 0,
+          code: '',
+          name: '',
+          credits: 3,
+          courseType: 'CORE',
+          description: '',
         });
       } else if (academicSubTab === 'sections') {
-        await createClassSectionMutation.mutateAsync({
-          sectionName: formData.get('sectionName') as string,
-          capacity: Number(formData.get('capacity') || 50),
-          courseId: Number(formData.get('courseId') || (liveCourses[0]?.id || 1)),
-          status: 'ACTIVE',
-        });
+        if (!sectionForm.semesterId) {
+          error('Validation', 'Please select a semester.');
+          return;
+        }
+        await createClassSectionMutation.mutateAsync(sectionForm);
+        success('Class Section Created', `Section "${sectionForm.name}" created.`);
+        setSectionForm({ semesterId: 0, name: '', description: '' });
       }
       setShowAddAcademicModal(false);
-    } catch {
-      setShowAddAcademicModal(false);
+    } catch (err: any) {
+      error('Creation Failed', err?.message || 'Check validation constraints.');
+    }
+  };
+
+  const handleToggleAcademicStatus = async (type: AcademicSubTab, id: number, currentStatus: string) => {
+    const nextStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      if (type === 'years') await updateYearStatusMutation.mutateAsync({ id, status: nextStatus });
+      else if (type === 'departments') await updateDeptStatusMutation.mutateAsync({ id, status: nextStatus });
+      else if (type === 'programs') await updateProgramStatusMutation.mutateAsync({ id, status: nextStatus });
+      else if (type === 'semesters') await updateSemesterStatusMutation.mutateAsync({ id, status: nextStatus });
+      else if (type === 'courses') await updateCourseStatusMutation.mutateAsync({ id, status: nextStatus });
+      else if (type === 'sections') await updateSectionStatusMutation.mutateAsync({ id, status: nextStatus });
+      success('Status Updated', `Entity marked as ${nextStatus}.`);
+    } catch (err: any) {
+      error('Update failed', err?.message);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex text-[#171717] font-sans selection:bg-[#F97316] selection:text-white">
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-[#E5E5E5] flex flex-col shrink-0">
-        <div className="p-5 border-b border-[#E5E5E5]">
-          <Logo size="md" />
-          <span className="text-[10px] uppercase tracking-wider text-[#737373] block mt-1 font-bold">Admin Console</span>
+    <AppShell activeRole="ADMIN">
+      <div className="space-y-6">
+        {/* Welcome Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#E5E5E5] p-5 sm:p-6 rounded-2xl shadow-xs">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#171717] tracking-tight">
+              Institutional Administration
+            </h1>
+            <p className="text-xs text-[#737373] mt-0.5">
+              Manage institution curriculum, directory rosters, academic calendar, and user governance.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+              {user?.rawRole || 'INSTITUTION_ADMIN'}
+            </span>
+          </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          <button 
-            onClick={() => setActiveTab('dashboard')} 
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
-              activeTab === 'dashboard' ? 'bg-orange-50 text-[#F97316] font-bold' : 'hover:bg-[#F7F7F7] text-[#525252]'
+        {/* Top Primary Navigation Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#E5E5E5] pb-2 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'dashboard'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
-            <span>Dashboard</span>
+            <span>Overview</span>
           </button>
 
-          <button 
-            onClick={() => setActiveTab('academic')} 
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
-              activeTab === 'academic' ? 'bg-orange-50 text-[#F97316] font-bold' : 'hover:bg-[#F7F7F7] text-[#525252]'
+          <button
+            type="button"
+            onClick={() => setActiveTab('academic')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'academic'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
             }`}
           >
             <FolderTree className="w-4 h-4" />
-            <span>Academic Setup</span>
+            <span>Academic Structure</span>
           </button>
 
-          <button 
-            onClick={() => setActiveTab('students')} 
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
-              activeTab === 'students' ? 'bg-orange-50 text-[#F97316] font-bold' : 'hover:bg-[#F7F7F7] text-[#525252]'
+          <button
+            type="button"
+            onClick={() => setActiveTab('curriculum')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'curriculum'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            <span>Student Directory</span>
+            <Layers className="w-4 h-4" />
+            <span>Curriculum & Offerings</span>
           </button>
 
-          <button 
-            onClick={() => setActiveTab('faculty')} 
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
-              activeTab === 'faculty' ? 'bg-orange-50 text-[#F97316] font-bold' : 'hover:bg-[#F7F7F7] text-[#525252]'
+          <button
+            type="button"
+            onClick={() => setActiveTab('students')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'students'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
-            <span>Faculty Directory</span>
+            <span>Students ({liveStudents.length})</span>
           </button>
-        </nav>
 
-        <div className="p-4 border-t border-[#E5E5E5]">
-          <button 
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+          <button
+            type="button"
+            onClick={() => setActiveTab('faculty')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'faculty'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
           >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            <BookOpen className="w-4 h-4" />
+            <span>Faculty ({liveFaculty.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'users'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>User Accounts</span>
           </button>
         </div>
-      </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="bg-white border-b border-[#E5E5E5] px-8 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <h2 className="font-bold text-sm text-[#171717]">Operations Command Console</h2>
-            <span className="text-[10px] bg-orange-50 text-[#F97316] font-bold px-2 py-0.5 rounded-full border border-orange-200">
-              TanStack Query Active
-            </span>
+        {/* 1. OVERVIEW TAB */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <MetricCard
+                title="TOTAL USERS"
+                value={String(dashboardData?.totalUsers ?? liveStudents.length + liveFaculty.length)}
+                sub="Accounts registered"
+                icon={<Users className="w-5 h-5 text-purple-600" />}
+                bg="bg-purple-50"
+              />
+              <MetricCard
+                title="TOTAL STUDENTS"
+                value={String(dashboardData?.totalStudents ?? liveStudents.length)}
+                sub="Enrolled scholars"
+                icon={<GraduationCap className="w-5 h-5 text-emerald-600" />}
+                bg="bg-emerald-50"
+              />
+              <MetricCard
+                title="TOTAL FACULTY"
+                value={String(dashboardData?.totalFaculty ?? liveFaculty.length)}
+                sub="Instructors & staff"
+                icon={<BookOpen className="w-5 h-5 text-blue-600" />}
+                bg="bg-blue-50"
+              />
+              <MetricCard
+                title="CLASSROOMS"
+                value={String(dashboardData?.totalClassrooms ?? liveClassSections.length)}
+                sub="Active spaces"
+                icon={<School className="w-5 h-5 text-[#F97316]" />}
+                bg="bg-orange-50"
+              />
+              <MetricCard
+                title="ASSIGNMENTS"
+                value={String(dashboardData?.totalAssignments ?? 0)}
+                sub="Tasks published"
+                icon={<FileText className="w-5 h-5 text-amber-600" />}
+                bg="bg-amber-50"
+              />
+              <MetricCard
+                title="LEARNING ASSETS"
+                value={String(dashboardData?.totalLearningMaterials ?? 0)}
+                sub="Library materials"
+                icon={<Layers className="w-5 h-5 text-rose-600" />}
+                bg="bg-rose-50"
+              />
+            </div>
+
+            {/* Quick Structure Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white border border-[#E5E5E5] p-5 rounded-2xl shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-[#171717]">Academic Overview</h3>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('academic')}>
+                    Manage Structure
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5]">
+                    <span className="text-[#737373]">Academic Years</span>
+                    <p className="text-lg font-bold text-[#171717] mt-1">{liveAcademicYears.length}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5]">
+                    <span className="text-[#737373]">Departments</span>
+                    <p className="text-lg font-bold text-[#171717] mt-1">{liveDepartments.length}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5]">
+                    <span className="text-[#737373]">Degree Programs</span>
+                    <p className="text-lg font-bold text-[#171717] mt-1">{livePrograms.length}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5]">
+                    <span className="text-[#737373]">Course Catalog</span>
+                    <p className="text-lg font-bold text-[#171717] mt-1">{liveCourses.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-[#E5E5E5] p-5 rounded-2xl shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-[#171717]">Institutional Setup</h3>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('users')}>
+                    View Accounts
+                  </Button>
+                </div>
+                <p className="text-xs text-[#737373] leading-relaxed">
+                  Institutional administration enforces role-based security, campus-wide timetable orchestration, and curriculum enrollment management.
+                </p>
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab('academic');
+                      setAcademicSubTab('courses');
+                      setShowAddAcademicModal(true);
+                    }}
+                    className="text-xs"
+                  >
+                    Add Course
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="text-xs"
+                  >
+                    Add Student
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddFacultyModal(true)}
+                    className="text-xs"
+                  >
+                    Add Faculty
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="font-bold text-xs block text-[#171717]">{adminName}</span>
-              <span className="text-[10px] text-[#737373]">{adminEmail}</span>
+        {/* 2. ACADEMIC STRUCTURE TAB */}
+        {activeTab === 'academic' && (
+          <div className="space-y-5">
+            {/* Sub-tabs header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E5E5E5] pb-3">
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {(['years', 'departments', 'programs', 'semesters', 'courses', 'sections'] as AcademicSubTab[]).map(
+                  (sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => setAcademicSubTab(sub)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer capitalize ${
+                        academicSubTab === sub
+                          ? 'bg-neutral-900 text-white'
+                          : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+                      }`}
+                    >
+                      {sub}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowAddAcademicModal(true)}
+                className="flex items-center gap-1.5 text-xs shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>
+                  Add {academicSubTab === 'years' ? 'Academic Year' : academicSubTab.slice(0, -1)}
+                </span>
+              </Button>
             </div>
-            <div className="w-9 h-9 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center font-bold text-[#F97316] text-xs">
-              {adminInitials}
+
+            {/* Sub-tab Tables */}
+            <div className="bg-white border border-[#E5E5E5] rounded-2xl overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-neutral-50/75 border-b border-[#E5E5E5] text-[#737373] font-bold">
+                      <th className="py-3 px-4">Name / Title</th>
+                      <th className="py-3 px-4">Code / Details</th>
+                      <th className="py-3 px-4">Relationship</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E5E5E5]">
+                    {academicSubTab === 'years' &&
+                      liveAcademicYears.map((y) => (
+                        <tr key={y.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{y.name || y.yearName}</td>
+                          <td className="py-3 px-4 text-[#737373]">
+                            {y.startDate} to {y.endDate}
+                          </td>
+                          <td className="py-3 px-4 text-[#737373]">—</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {y.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('years', y.id, y.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                    {academicSubTab === 'departments' &&
+                      liveDepartments.map((d) => (
+                        <tr key={d.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{d.name || d.departmentName}</td>
+                          <td className="py-3 px-4 font-mono font-semibold text-[#737373]">{d.code || d.departmentCode}</td>
+                          <td className="py-3 px-4 text-[#737373] truncate max-w-xs">{d.description || '—'}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {d.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('departments', d.id, d.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                    {academicSubTab === 'programs' &&
+                      livePrograms.map((p) => (
+                        <tr key={p.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{p.name || p.programName}</td>
+                          <td className="py-3 px-4 font-mono font-semibold text-[#737373]">{p.code || p.programCode}</td>
+                          <td className="py-3 px-4 text-[#737373]">{p.departmentName || `Dept #${p.departmentId}`}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('programs', p.id, p.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                    {academicSubTab === 'semesters' &&
+                      liveSemesters.map((s) => (
+                        <tr key={s.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{s.name || s.semesterName}</td>
+                          <td className="py-3 px-4 text-[#737373]">Semester #{s.semesterNumber}</td>
+                          <td className="py-3 px-4 text-[#737373]">{s.programName || `Program #${s.programId}`}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {s.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('semesters', s.id, s.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                    {academicSubTab === 'courses' &&
+                      liveCourses.map((c) => (
+                        <tr key={c.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{c.name || c.courseTitle}</td>
+                          <td className="py-3 px-4">
+                            <span className="font-mono font-bold text-[#737373]">{c.code || c.courseCode}</span>
+                            <span className="ml-2 px-1.5 py-0.5 bg-neutral-100 rounded text-[10px] font-semibold text-[#737373]">
+                              {c.credits} Credits ({c.courseType})
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-[#737373]">
+                            {c.departmentName || `Dept #${c.departmentId}`} / {c.semesterName || `Sem #${c.semesterId}`}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('courses', c.id, c.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                    {academicSubTab === 'sections' &&
+                      liveClassSections.map((sec) => (
+                        <tr key={sec.id} className="hover:bg-neutral-50/50">
+                          <td className="py-3 px-4 font-bold text-[#171717]">{sec.name || sec.sectionName}</td>
+                          <td className="py-3 px-4 text-[#737373]">{sec.description || 'General Section'}</td>
+                          <td className="py-3 px-4 text-[#737373]">
+                            {sec.semesterName || `Semester #${sec.semesterId}`}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {sec.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAcademicStatus('sections', sec.id, sec.status)}
+                              className="text-[11px] text-[#F97316] hover:underline font-semibold"
+                            >
+                              Toggle Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </header>
+        )}
 
-        <div className="flex-1 p-8">
-          {/* Dashboard Tab */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
-              {/* Banner */}
-              <div className="bg-gradient-to-r from-[#F97316] to-[#EA580C] p-6 rounded-2xl text-white shadow-md relative overflow-hidden flex items-center justify-between">
-                <div className="space-y-1.5 relative z-10 max-w-xl">
-                  <span className="text-[10px] uppercase font-extrabold tracking-widest bg-white/20 px-2 py-0.5 rounded-md">
-                    Administration
-                  </span>
-                  <h3 className="text-xl font-black">EduConflux Academic Command Center</h3>
-                  <p className="text-xs text-orange-100 font-normal leading-relaxed">
-                    Provision academic periods, register departments, manage courses, and review real-time roster databases.
-                  </p>
+        {/* 3. CURRICULUM TAB */}
+        {activeTab === 'curriculum' && <CurriculumManagementView />}
+
+        {/* 4. STUDENTS DIRECTORY TAB */}
+        {activeTab === 'students' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowAddStudentModal(true)}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Student Record</span>
+              </Button>
+            </div>
+            <StudentDirectoryTable
+              students={liveStudents}
+              isLoading={isLoadingStudents}
+              onDeleteStudent={deleteStudentMutation.mutateAsync}
+            />
+          </div>
+        )}
+
+        {/* 5. FACULTY DIRECTORY TAB */}
+        {activeTab === 'faculty' && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowAddFacultyModal(true)}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Faculty Member</span>
+              </Button>
+            </div>
+            <FacultyDirectoryTable
+              faculty={liveFaculty}
+              isLoading={isLoadingFaculty}
+              onDeleteFaculty={deleteFacultyMutation.mutateAsync}
+            />
+          </div>
+        )}
+
+        {/* 6. USERS MANAGEMENT TAB */}
+        {activeTab === 'users' && <UserManagementView />}
+
+        {/* Modals for Academic Creations */}
+        <Modal
+          isOpen={showAddAcademicModal}
+          onClose={() => setShowAddAcademicModal(false)}
+          title={`Create ${
+            academicSubTab === 'years'
+              ? 'Academic Year'
+              : academicSubTab.charAt(0).toUpperCase() + academicSubTab.slice(1, -1)
+          }`}
+          description="Configure institutional curriculum hierarchy."
+        >
+          <form onSubmit={handleCreateAcademicRecord} className="space-y-3.5">
+            {academicSubTab === 'years' && (
+              <>
+                <Input
+                  label="Academic Year Name *"
+                  placeholder="e.g. 2026-2027"
+                  value={yearForm.name}
+                  onChange={(e) => setYearForm({ ...yearForm, name: e.target.value })}
+                  required
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    label="Start Date *"
+                    type="date"
+                    value={yearForm.startDate}
+                    onChange={(e) => setYearForm({ ...yearForm, startDate: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="End Date *"
+                    type="date"
+                    value={yearForm.endDate}
+                    onChange={(e) => setYearForm({ ...yearForm, endDate: e.target.value })}
+                    required
+                  />
                 </div>
-                <div className="absolute right-[-5%] bottom-[-20%] text-white/10 text-9xl font-black select-none pointer-events-none">
-                  ADM
+              </>
+            )}
+
+            {academicSubTab === 'departments' && (
+              <>
+                <Input
+                  label="Department Code *"
+                  placeholder="e.g. CS"
+                  value={deptForm.code}
+                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Department Name *"
+                  placeholder="e.g. Computer Science & Engineering"
+                  value={deptForm.name}
+                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Description"
+                  placeholder="Department details..."
+                  value={deptForm.description}
+                  onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
+                />
+              </>
+            )}
+
+            {academicSubTab === 'programs' && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#171717]">Department *</label>
+                  <select
+                    required
+                    value={progForm.departmentId || ''}
+                    onChange={(e) => setProgForm({ ...progForm, departmentId: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                  >
+                    <option value="">Select Department...</option>
+                    {liveDepartments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name || d.departmentName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+                <Input
+                  label="Program Code *"
+                  placeholder="e.g. BTECH-CSE"
+                  value={progForm.code}
+                  onChange={(e) => setProgForm({ ...progForm, code: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Program Name *"
+                  placeholder="e.g. Bachelor of Technology in Computer Science"
+                  value={progForm.name}
+                  onChange={(e) => setProgForm({ ...progForm, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Duration (Years) *"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={progForm.durationYears}
+                  onChange={(e) => setProgForm({ ...progForm, durationYears: Number(e.target.value) })}
+                  required
+                />
+              </>
+            )}
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { label: 'Academic Years', value: isLoadingYears ? '...' : totalActiveYears, desc: 'Configured academic years', gradient: 'from-orange-500 to-amber-500' },
-                  { label: 'Departments', value: isLoadingDepts ? '...' : totalActiveDepts, desc: 'Active institutional departments', gradient: 'from-blue-500 to-indigo-500' },
-                  { label: 'Course Catalog', value: isLoadingCourses ? '...' : totalActiveCourses, desc: 'Courses cataloged in DB', gradient: 'from-emerald-500 to-teal-500' },
-                  { label: 'Class Sections', value: isLoadingSections ? '...' : totalActiveSections, desc: 'Active class sections', gradient: 'from-purple-500 to-pink-500' }
-                ].map((stat, idx) => (
-                  <div key={idx} className="bg-white border border-[#E5E5E5]/60 p-6 rounded-2xl shadow-xs hover:shadow-md transition-all relative overflow-hidden group">
-                    <div className={`absolute top-0 left-0 w-2 h-full bg-gradient-to-b ${stat.gradient}`} />
-                    <span className="text-[10px] font-extrabold text-[#737373] block uppercase tracking-wider">{stat.label}</span>
-                    <span className="text-3xl font-black text-[#171717] block mt-2 group-hover:scale-105 transition-transform duration-200">{stat.value}</span>
-                    <span className="text-[11px] text-[#737373] block mt-1">{stat.desc}</span>
-                  </div>
-                ))}
-              </div>
+            {academicSubTab === 'semesters' && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#171717]">Program *</label>
+                  <select
+                    required
+                    value={semForm.programId || ''}
+                    onChange={(e) => setSemForm({ ...semForm, programId: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                  >
+                    <option value="">Select Program...</option>
+                    {livePrograms.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name || p.programName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Input
+                  label="Semester Number *"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={semForm.semesterNumber}
+                  onChange={(e) => setSemForm({ ...semForm, semesterNumber: Number(e.target.value) })}
+                  required
+                />
+                <Input
+                  label="Semester Name *"
+                  placeholder="e.g. Fall Semester 2026"
+                  value={semForm.name}
+                  onChange={(e) => setSemForm({ ...semForm, name: e.target.value })}
+                  required
+                />
+              </>
+            )}
 
-              {/* Live Directory Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs flex items-center justify-between">
+            {academicSubTab === 'courses' && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#171717]">Department *</label>
+                  <select
+                    required
+                    value={courseForm.departmentId || ''}
+                    onChange={(e) => setCourseForm({ ...courseForm, departmentId: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                  >
+                    <option value="">Select Department...</option>
+                    {liveDepartments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name || d.departmentName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#737373]">Student Roster</span>
-                    <h4 className="text-2xl font-black text-[#171717]">
-                      {isLoadingStudents ? '...' : liveStudents.length} Registered
-                    </h4>
-                    <p className="text-xs text-[#525252]">Active students enrolled across institutional programs.</p>
+                    <label className="block text-xs font-semibold text-[#171717]">Program *</label>
+                    <select
+                      required
+                      value={courseForm.programId || ''}
+                      onChange={(e) => setCourseForm({ ...courseForm, programId: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                    >
+                      <option value="">Select Program...</option>
+                      {livePrograms.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name || p.programName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <button
-                    onClick={() => setActiveTab('students')}
-                    className="px-4 py-2 bg-orange-50 text-[#F97316] hover:bg-orange-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    View Students →
-                  </button>
-                </div>
 
-                <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#737373]">Faculty Members</span>
-                    <h4 className="text-2xl font-black text-[#171717]">
-                      {isLoadingFaculty ? '...' : liveFaculty.length} Registered
-                    </h4>
-                    <p className="text-xs text-[#525252]">Faculty and instructors assigned across departments.</p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('faculty')}
-                    className="px-4 py-2 bg-orange-50 text-[#F97316] hover:bg-orange-100 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                  >
-                    View Faculty →
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Academic Setup Tab */}
-          {activeTab === 'academic' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">Academic Workspace Configuration</h2>
-                  <p className="text-xs text-[#737373]">Manage institutional terms, departments, programs, and courses directly in the database</p>
-                </div>
-
-                <button 
-                  onClick={() => setShowAddAcademicModal(true)}
-                  className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" /> Add Record
-                </button>
-              </div>
-
-              {/* Sub tabs navigation */}
-              <div className="flex border-b border-[#E5E5E5] gap-2 overflow-x-auto">
-                {[
-                  { id: 'years', label: 'Academic Years', count: liveAcademicYears.length },
-                  { id: 'departments', label: 'Departments', count: liveDepartments.length },
-                  { id: 'programs', label: 'Programs', count: livePrograms.length },
-                  { id: 'semesters', label: 'Semesters', count: liveSemesters.length },
-                  { id: 'courses', label: 'Courses', count: liveCourses.length },
-                  { id: 'sections', label: 'Class Sections', count: liveClassSections.length }
-                ].map(sub => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setAcademicSubTab(sub.id as any)}
-                    className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                      academicSubTab === sub.id ? 'border-[#F97316] text-[#F97316]' : 'border-transparent text-[#737373] hover:text-[#171717]'
-                    }`}
-                  >
-                    <span>{sub.label}</span>
-                    <span className="text-[10px] bg-[#F7F7F7] px-2 py-0.5 rounded-full text-[#525252]">{sub.count}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Academic Years */}
-              {academicSubTab === 'years' && (
-                <div>
-                  {liveAcademicYears.length === 0 ? (
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                      <Inbox className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                      <h4 className="font-bold text-sm text-[#171717]">No Academic Years Configured</h4>
-                      <p className="text-xs text-[#737373] max-w-sm mx-auto">Click "Add Record" above to register your first academic term.</p>
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#F7F7F7] border-b border-[#E5E5E5] font-bold text-[#737373]">
-                          <tr>
-                            <th className="p-4">Academic Term</th>
-                            <th className="p-4">Start Date</th>
-                            <th className="p-4">End Date</th>
-                            <th className="p-4">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E5E5E5]">
-                          {liveAcademicYears.map(y => (
-                            <tr key={y.id}>
-                              <td className="p-4 font-bold text-[#171717]">{y.yearName}</td>
-                              <td className="p-4 text-[#525252]">{y.startDate}</td>
-                              <td className="p-4 text-[#525252]">{y.endDate}</td>
-                              <td className="p-4">
-                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{y.status}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Departments */}
-              {academicSubTab === 'departments' && (
-                <div>
-                  {liveDepartments.length === 0 ? (
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                      <Inbox className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                      <h4 className="font-bold text-sm text-[#171717]">No Departments Added</h4>
-                      <p className="text-xs text-[#737373] max-w-sm mx-auto">Click "Add Record" to create your institutional departments.</p>
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#F7F7F7] border-b border-[#E5E5E5] font-bold text-[#737373]">
-                          <tr>
-                            <th className="p-4">Department Code</th>
-                            <th className="p-4">Department Name</th>
-                            <th className="p-4">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E5E5E5]">
-                          {liveDepartments.map(d => (
-                            <tr key={d.id}>
-                              <td className="p-4 font-semibold text-[#171717]">{d.departmentCode}</td>
-                              <td className="p-4 text-[#525252]">{d.departmentName}</td>
-                              <td className="p-4">
-                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{d.status}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Courses */}
-              {academicSubTab === 'courses' && (
-                <div>
-                  {liveCourses.length === 0 ? (
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                      <Inbox className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                      <h4 className="font-bold text-sm text-[#171717]">No Courses in Catalog</h4>
-                      <p className="text-xs text-[#737373] max-w-sm mx-auto">Click "Add Record" to create courses in your academic catalog.</p>
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#F7F7F7] border-b border-[#E5E5E5] font-bold text-[#737373]">
-                          <tr>
-                            <th className="p-4">Course Code</th>
-                            <th className="p-4">Course Title</th>
-                            <th className="p-4">Credits</th>
-                            <th className="p-4">Type</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E5E5E5]">
-                          {liveCourses.map(c => (
-                            <tr key={c.id}>
-                              <td className="p-4 font-semibold text-[#171717]">{c.courseCode}</td>
-                              <td className="p-4 text-[#525252]">{c.courseTitle}</td>
-                              <td className="p-4 text-[#525252]">{c.credits} Credits</td>
-                              <td className="p-4">
-                                <span className="bg-orange-50 text-[#F97316] px-2 py-0.5 rounded-md font-bold text-[10px]">{c.courseType}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Class Sections */}
-              {academicSubTab === 'sections' && (
-                <div>
-                  {liveClassSections.length === 0 ? (
-                    <div className="bg-white border border-[#E5E5E5] rounded-2xl p-12 text-center space-y-3">
-                      <Inbox className="w-10 h-10 text-[#737373] mx-auto opacity-50" />
-                      <h4 className="font-bold text-sm text-[#171717]">No Class Sections Configured</h4>
-                      <p className="text-xs text-[#737373] max-w-sm mx-auto">Click "Add Record" to create class sections mapped to catalog courses.</p>
-                    </div>
-                  ) : (
-                    <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#F7F7F7] border-b border-[#E5E5E5] font-bold text-[#737373]">
-                          <tr>
-                            <th className="p-4">Section Name</th>
-                            <th className="p-4">Capacity</th>
-                            <th className="p-4">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E5E5E5]">
-                          {liveClassSections.map(sec => (
-                            <tr key={sec.id}>
-                              <td className="p-4 font-bold text-[#171717]">{sec.sectionName}</td>
-                              <td className="p-4 text-[#525252]">{sec.capacity} Students</td>
-                              <td className="p-4">
-                                <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{sec.status}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Programs & Semesters */}
-              {(academicSubTab === 'programs' || academicSubTab === 'semesters') && (
-                <div className="bg-white border border-[#E5E5E5] p-10 rounded-2xl text-center space-y-2">
-                  <FolderTree className="w-10 h-10 text-[#737373] mx-auto opacity-40" />
-                  <h4 className="font-bold text-xs text-[#171717]">{academicSubTab.toUpperCase()} Records</h4>
-                  <p className="text-[11px] text-[#737373] max-w-sm mx-auto">
-                    {academicSubTab === 'programs' ? `${livePrograms.length} programs configured.` : `${liveSemesters.length} semesters active.`}
-                  </p>
-                </div>
-              )}
-
-              {/* Add Academic Modal */}
-              {showAddAcademicModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                  <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-[#E5E5E5] shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-                    <h3 className="font-bold text-sm text-[#171717]">Create {academicSubTab.toUpperCase()} Record</h3>
-                    <form onSubmit={handleCreateAcademicRecord} className="space-y-3">
-                      {academicSubTab === 'years' && (
-                        <>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Academic Year Name</label>
-                            <input name="yearName" placeholder="e.g. 2026-2027" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Start Date</label>
-                              <input name="startDate" type="date" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">End Date</label>
-                              <input name="endDate" type="date" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {academicSubTab === 'departments' && (
-                        <>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Department Name</label>
-                            <input name="departmentName" placeholder="e.g. Computer Science and Engineering" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Department Code</label>
-                            <input name="departmentCode" placeholder="e.g. CSE" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                        </>
-                      )}
-
-                      {academicSubTab === 'courses' && (
-                        <>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Course Title</label>
-                            <input name="courseTitle" placeholder="e.g. Database Management Systems" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Course Code</label>
-                              <input name="courseCode" placeholder="e.g. CS202" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Credits</label>
-                              <input name="credits" type="number" defaultValue={4} min={1} max={10} required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {academicSubTab === 'sections' && (
-                        <>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Section Name</label>
-                            <input name="sectionName" placeholder="e.g. Section A" required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Capacity</label>
-                            <input name="capacity" type="number" defaultValue={50} min={10} max={200} required className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs" />
-                          </div>
-                        </>
-                      )}
-
-                      <div className="flex gap-2 justify-end pt-3">
-                        <button type="button" onClick={() => setShowAddAcademicModal(false)} className="px-3 py-1.5 border border-[#E5E5E5] text-xs font-semibold rounded-lg cursor-pointer">Cancel</button>
-                        <button type="submit" className="px-4 py-1.5 bg-[#F97316] text-white text-xs font-semibold rounded-lg cursor-pointer hover:bg-[#EA580C]">Save Record</button>
-                      </div>
-                    </form>
+                    <label className="block text-xs font-semibold text-[#171717]">Semester *</label>
+                    <select
+                      required
+                      value={courseForm.semesterId || ''}
+                      onChange={(e) => setCourseForm({ ...courseForm, semesterId: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                    >
+                      <option value="">Select Semester...</option>
+                      {liveSemesters.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name || s.semesterName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* Students Directory Tab */}
-          {activeTab === 'students' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">Student Directory</h2>
-                  <p className="text-xs text-[#737373]">Live registered student accounts connected with backend StudentController</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    label="Course Code *"
+                    placeholder="e.g. CS301"
+                    value={courseForm.code}
+                    onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Credits *"
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={courseForm.credits}
+                    onChange={(e) => setCourseForm({ ...courseForm, credits: Number(e.target.value) })}
+                    required
+                  />
                 </div>
 
-                <button 
-                  onClick={() => setShowAddStudentModal(true)}
-                  className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" /> Add Student
-                </button>
-              </div>
+                <Input
+                  label="Course Title *"
+                  placeholder="e.g. Database Management Systems"
+                  value={courseForm.name}
+                  onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                  required
+                />
 
-              <StudentDirectoryTable
-                students={liveStudents}
-                isLoading={isLoadingStudents}
-                onDeleteStudent={(id) => deleteStudentMutation.mutate(id)}
-              />
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#171717]">Course Type *</label>
+                  <select
+                    value={courseForm.courseType}
+                    onChange={(e) => setCourseForm({ ...courseForm, courseType: e.target.value as CourseType })}
+                    className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                  >
+                    <option value="CORE">Core</option>
+                    <option value="ELECTIVE">Elective</option>
+                    <option value="LAB">Lab</option>
+                    <option value="PROJECT">Project</option>
+                  </select>
+                </div>
+              </>
+            )}
 
-              <CreateStudentModal
-                isOpen={showAddStudentModal}
-                onClose={() => setShowAddStudentModal(false)}
-                onSubmit={async (data) => {
-                  await createStudentMutation.mutateAsync(data);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Faculty Directory Tab */}
-          {activeTab === 'faculty' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#171717]">Faculty Directory</h2>
-                  <p className="text-xs text-[#737373]">Live registered faculty accounts connected with backend FacultyController</p>
+            {academicSubTab === 'sections' && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-[#171717]">Semester *</label>
+                  <select
+                    required
+                    value={sectionForm.semesterId || ''}
+                    onChange={(e) => setSectionForm({ ...sectionForm, semesterId: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-white border border-[#E5E5E5] rounded-xl text-xs"
+                  >
+                    <option value="">Select Semester...</option>
+                    {liveSemesters.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name || s.semesterName} ({s.programName})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <button 
-                  onClick={() => setShowAddFacultyModal(true)}
-                  className="flex items-center gap-2 bg-[#F97316] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#EA580C] transition-all cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" /> Add Faculty
-                </button>
-              </div>
+                <Input
+                  label="Section Name *"
+                  placeholder="e.g. Section A"
+                  value={sectionForm.name}
+                  onChange={(e) => setSectionForm({ ...sectionForm, name: e.target.value })}
+                  required
+                />
 
-              <FacultyDirectoryTable
-                faculty={liveFaculty}
-                isLoading={isLoadingFaculty}
-                onDeleteFaculty={(id) => deleteFacultyMutation.mutate(id)}
-              />
+                <Input
+                  label="Description"
+                  placeholder="e.g. Morning cohort"
+                  value={sectionForm.description}
+                  onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
+                />
+              </>
+            )}
 
-              <CreateFacultyModal
-                isOpen={showAddFacultyModal}
-                onClose={() => setShowAddFacultyModal(false)}
-                onSubmit={async (data) => {
-                  await createFacultyMutation.mutateAsync(data);
-                }}
-              />
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#E5E5E5]">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowAddAcademicModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm">
+                Create Record
+              </Button>
             </div>
-          )}
-        </div>
-      </main>
-    </div>
+          </form>
+        </Modal>
+
+        {/* Directory Modals */}
+        <CreateStudentModal
+          isOpen={showAddStudentModal}
+          onClose={() => setShowAddStudentModal(false)}
+          onSubmit={async (data) => {
+            await createStudentMutation.mutateAsync(data);
+          }}
+        />
+
+        <CreateFacultyModal
+          isOpen={showAddFacultyModal}
+          onClose={() => setShowAddFacultyModal(false)}
+          onSubmit={async (data) => {
+            await createFacultyMutation.mutateAsync(data);
+          }}
+        />
+      </div>
+    </AppShell>
   );
 };
+
+export default AdminDashboard;

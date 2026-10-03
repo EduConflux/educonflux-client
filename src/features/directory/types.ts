@@ -1,5 +1,5 @@
-export type StudentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'GRADUATED';
-export type FacultyStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED' | 'RETIRED';
+export type StudentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'GRADUATED' | 'WITHDRAWN';
+export type FacultyStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE';
 
 export interface Student {
   id: number;
@@ -23,10 +23,9 @@ export interface Student {
 }
 
 export interface StudentRequest {
-  institutionId?: number;
-  programId?: number;
-  classSectionId?: number;
-  academicYearId?: number;
+  programId: number;
+  classSectionId: number;
+  academicYearId: number;
   enrollmentNumber: string;
   firstName: string;
   lastName: string;
@@ -57,8 +56,7 @@ export interface Faculty {
 }
 
 export interface FacultyRequest {
-  institutionId?: number;
-  departmentId?: number;
+  departmentId: number;
   employeeId: string;
   firstName: string;
   lastName: string;

@@ -7,17 +7,16 @@ import { RoleSelector, ROLES_DATA } from './RoleSelector';
 import { Input } from '../../../components/common/Input';
 import { Button } from '../../../components/common/Button';
 import { Logo } from '../../../components/common/Logo';
+import { PasswordInput } from '../../../components/common/PasswordInput';
 import { 
-  Eye, 
-  EyeOff, 
   Mail, 
-  Lock, 
   ArrowLeft, 
   AlertCircle, 
   WifiOff, 
   CheckCircle, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Info
 } from 'lucide-react';
 
 interface LoginFormProps {
@@ -35,9 +34,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
     rememberMe: true,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [authError, setAuthError] = useState<AuthErrorType>(null);
+  const [roleMismatchMessage, setRoleMismatchMessage] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
 
   const selectedRoleInfo = ROLES_DATA.find(r => r.id === formState.role) || ROLES_DATA[2];
@@ -64,6 +63,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+    setRoleMismatchMessage('');
+
+    if (formState.role === 'PARENT') {
+      setRoleMismatchMessage('The Parent & Guardian Portal is launching in Phase 2. Please sign in as Student, Teacher, or Admin.');
+      setAuthError('ROLE_MISMATCH');
+      return;
+    }
 
     if (!validateForm()) {
       return;
@@ -75,22 +81,39 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
         password: formState.password,
       });
 
-      const token = res?.token || res?.accessToken || (typeof res === 'string' ? res : 'active-session-token');
-      const user = extractUserFromAuthResponse(res, formState.email.trim(), formState.role);
+      const token = res?.token || res?.accessToken;
+      if (!token) {
+        throw new Error('Server response did not include a valid token.');
+      }
 
-      login(token, user);
+      const user = extractUserFromAuthResponse(res, formState.email.trim());
+
+      // Validate selected role against actual account role
+      if (user.role !== formState.role) {
+        const expectedRoleTitle =
+          user.role === 'ADMIN' ? 'Institution Admin' : user.role === 'TEACHER' ? 'Faculty / Teacher' : 'Student';
+        setRoleMismatchMessage(
+          `Account Role Mismatch: Your account credentials belong to a ${expectedRoleTitle}, but you selected "${selectedRoleInfo.title}". Please switch to the ${expectedRoleTitle} tab to continue.`
+        );
+        setAuthError('ROLE_MISMATCH');
+        return;
+      }
+
+      // Perform login in AuthContext
+      login(token, user, formState.rememberMe);
       setIsSuccess(true);
 
       setTimeout(() => {
-        const targetRole = user.role || formState.role;
-        if (targetRole === 'ADMIN') {
+        if (user.firstLogin) {
+          onNavigate('/change-password');
+        } else if (user.role === 'ADMIN') {
           onNavigate('/admin');
-        } else if (targetRole === 'TEACHER') {
+        } else if (user.role === 'TEACHER') {
           onNavigate('/teacher');
         } else {
           onNavigate('/student');
         }
-      }, 600);
+      }, 500);
     } catch (err: any) {
       if (err?.status === 0 || err?.status === 504 || err?.status === 502 || err?.name === 'TypeError') {
         setAuthError('NETWORK');
@@ -103,6 +126,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
   const handleRoleSelect = (role: LoginFormState['role']) => {
     setFormState(prev => ({ ...prev, role }));
     if (authError) setAuthError(null);
+    if (roleMismatchMessage) setRoleMismatchMessage('');
   };
 
   return (
@@ -127,7 +151,31 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Global Error Alert */}
+        {/* Parent Role notice */}
+        {formState.role === 'PARENT' && (
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 flex items-start gap-2 animate-in fade-in duration-200">
+            <Info className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold block">Parent Portal Phase 2</span>
+              <span className="text-[11px] leading-relaxed">
+                Guardian and parent accounts are currently scheduled for Phase 2 integration. If you are a staff member or student, please select your active role.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Role Mismatch Alert */}
+        {authError === 'ROLE_MISMATCH' && (
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 animate-in fade-in duration-200">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold block">Access Restricted</span>
+              <span className="text-[11px] leading-relaxed">{roleMismatchMessage}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Global Invalid Credentials Error Alert */}
         {authError === 'INVALID_CREDENTIALS' && (
           <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2 animate-in fade-in duration-200">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
@@ -176,32 +224,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             autoComplete="email"
           />
 
-          <div className="space-y-1">
-            <div className="relative">
-              <Input
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={formState.password}
-                onChange={(e) => {
-                  setFormState(prev => ({ ...prev, password: e.target.value }));
-                  if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
-                }}
-                error={errors.password}
-                leftIcon={<Lock className="w-4 h-4" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-[#737373] hover:text-[#171717] focus:outline-hidden cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                }
-                autoComplete="current-password"
-              />
-            </div>
-          </div>
+          <PasswordInput
+            label="Password"
+            placeholder="••••••••"
+            value={formState.password}
+            onChange={(e) => {
+              setFormState(prev => ({ ...prev, password: e.target.value }));
+              if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
+            }}
+            error={errors.password}
+            autoComplete="current-password"
+          />
 
           <div className="flex items-center justify-between pt-0.5">
             <label className="flex items-center gap-2 text-xs text-[#525252] cursor-pointer select-none">
@@ -229,7 +262,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             size="lg"
             className="w-full justify-center mt-2 shadow-sm font-bold cursor-pointer"
             isLoading={loginMutation.isPending}
-            disabled={isSuccess}
+            disabled={isSuccess || formState.role === 'PARENT'}
             rightIcon={!isSuccess ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
             {isSuccess ? 'Launching Portal...' : `Sign in as ${selectedRoleInfo.title}`}

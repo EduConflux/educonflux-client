@@ -1,53 +1,129 @@
+export type AcademicStatus = 'ACTIVE' | 'INACTIVE' | 'COMPLETED';
+
 export interface AcademicYear {
   id: number;
-  yearName: string;
+  name: string;
   startDate: string;
   endDate: string;
-  status: 'ACTIVE' | 'ARCHIVED' | 'UPCOMING';
+  status: AcademicStatus;
+  // Legacy alias support
+  yearName?: string;
 }
 
 export interface Department {
   id: number;
-  departmentCode: string;
-  departmentName: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  code: string;
+  name: string;
+  description?: string;
+  status: AcademicStatus;
+  // Legacy aliases
+  departmentCode?: string;
+  departmentName?: string;
 }
 
 export interface Program {
   id: number;
-  programCode: string;
-  programName: string;
+  code: string;
+  name: string;
+  description?: string;
+  durationYears: number;
   departmentId: number;
   departmentName?: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: AcademicStatus;
+  // Legacy aliases
+  programCode?: string;
+  programName?: string;
 }
 
 export interface Semester {
   id: number;
-  semesterName: string;
-  academicYearId: number;
-  academicYearName?: string;
-  startDate: string;
-  endDate: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'UPCOMING';
+  name: string;
+  semesterNumber: number;
+  programId: number;
+  programName?: string;
+  status: AcademicStatus;
+  // Legacy aliases
+  semesterName?: string;
+  academicYearId?: number;
 }
+
+export type CourseType = 'CORE' | 'ELECTIVE' | 'LAB' | 'PROJECT';
 
 export interface Course {
   id: number;
-  courseCode: string;
-  courseTitle: string;
+  code: string;
+  name: string;
+  description?: string;
   credits: number;
+  courseType: CourseType;
   departmentId: number;
   departmentName?: string;
-  courseType: 'THEORY' | 'LAB' | 'PROJECT';
-  status: 'ACTIVE' | 'INACTIVE';
+  programId: number;
+  programName?: string;
+  semesterId: number;
+  semesterName?: string;
+  semesterNumber?: number;
+  status: AcademicStatus;
+  // Legacy aliases
+  courseCode?: string;
+  courseTitle?: string;
 }
 
 export interface ClassSection {
   id: number;
-  sectionName: string;
-  capacity: number;
-  courseId: number;
-  courseTitle?: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  name: string;
+  description?: string;
+  semesterId: number;
+  semesterName?: string;
+  semesterNumber?: number;
+  programId?: number;
+  programName?: string;
+  status: AcademicStatus;
+  // Legacy aliases
+  sectionName?: string;
+  capacity?: number;
+  courseId?: number;
+}
+
+export interface CreateAcademicYearRequest {
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface CreateDepartmentRequest {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface CreateProgramRequest {
+  code: string;
+  name: string;
+  description?: string;
+  durationYears: number;
+  departmentId: number;
+}
+
+export interface CreateSemesterRequest {
+  name: string;
+  semesterNumber: number;
+  programId: number;
+}
+
+export interface CreateCourseRequest {
+  code: string;
+  name: string;
+  description?: string;
+  credits: number;
+  courseType: CourseType;
+  departmentId: number;
+  programId: number;
+  semesterId: number;
+}
+
+export interface CreateClassSectionRequest {
+  name: string;
+  description?: string;
+  semesterId: number;
 }

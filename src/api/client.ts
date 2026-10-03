@@ -3,6 +3,7 @@
 export interface ApiError {
   status: number;
   message: string;
+  errors?: Record<string, string>;
   data?: any;
 }
 
@@ -15,7 +16,7 @@ class HttpClient {
 
   private getAuthToken(): string | null {
     try {
-      return localStorage.getItem('token');
+      return localStorage.getItem('token') || sessionStorage.getItem('token');
     } catch {
       return null;
     }
@@ -43,6 +44,20 @@ class HttpClient {
     const response = await fetch(url, config);
 
     if (!response.ok) {
+      if (response.status === 401) {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+        } catch {
+          // ignore
+        }
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?expired=true';
+        }
+      }
+
       let errorData: any;
       try {
         errorData = await response.json();
@@ -55,6 +70,7 @@ class HttpClient {
         message: (typeof errorData === 'object' && (errorData?.message || errorData?.error)) 
           ? (errorData.message || errorData.error) 
           : (typeof errorData === 'string' && errorData ? errorData : `Request failed with status ${response.status}`),
+        errors: typeof errorData === 'object' && errorData?.errors ? errorData.errors : undefined,
         data: errorData,
       };
 
@@ -103,6 +119,38 @@ class HttpClient {
 
   delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+  }
+
+  async downloadFile(fileId: number, fallbackFilename: string = 'downloaded_file'): Promise<void> {
+    const token = this.getAuthToken();
+    const headers = new Headers();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+
+    const response = await fetch(`${this.baseUrl}/files/${fileId}/download`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('content-disposition');
+    let filename = fallbackFilename;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   }
 }
 

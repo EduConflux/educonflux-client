@@ -7,6 +7,9 @@ import type {
   ChatMessage,
   StudentClassroomResponse,
   MembershipResponse,
+  InvitationResponse,
+  CreateInvitationRequest,
+  JoinClassroomRequest,
 } from '../types';
 
 export const classroomApi = {
@@ -18,9 +21,25 @@ export const classroomApi = {
   createClassroom: (request: ClassroomRequest) =>
     apiClient.post<Classroom>('/faculty/classrooms', request),
 
+  // Faculty: Archive classroom
+  archiveClassroom: (classroomId: number) =>
+    apiClient.patch<void>(`/faculty/classrooms/${classroomId}/archive`),
+
   // Student: Get enrolled classrooms
   getMyClassrooms: () =>
     apiClient.get<StudentClassroomResponse[]>('/student/classrooms'),
+
+  // Student: Join classroom via invitation token
+  joinClassroom: (token: string) =>
+    apiClient.post<void>('/student/classrooms/join', { token } as JoinClassroomRequest),
+
+  // Faculty: Create invitation
+  createInvitation: (classroomId: number, studentIds: number[]) =>
+    apiClient.post<InvitationResponse>(`/faculty/classrooms/${classroomId}/invitations`, { studentIds } as CreateInvitationRequest),
+
+  // Faculty: Get classroom invitations
+  getClassroomInvitations: (classroomId: number) =>
+    apiClient.get<InvitationResponse[]>(`/faculty/classrooms/${classroomId}/invitations`),
 
   // Faculty: Get classroom members (students)
   getClassroomMembers: (classroomId: number) =>

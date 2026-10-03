@@ -1,4 +1,19 @@
-import type { User } from '../features/auth/types';
+import type { User, UserRole } from '../features/auth/types';
+
+export function mapBackendRoleToAppRole(rawRole: string | undefined | null): UserRole {
+  if (!rawRole) return 'STUDENT';
+  const clean = String(rawRole).replace(/^ROLE_/, '').toUpperCase();
+  if (clean === 'INSTITUTION_ADMIN' || clean === 'PLATFORM_ADMIN' || clean === 'ADMIN') {
+    return 'ADMIN';
+  }
+  if (clean === 'FACULTY' || clean === 'TEACHER') {
+    return 'TEACHER';
+  }
+  if (clean === 'PARENT') {
+    return 'PARENT';
+  }
+  return 'STUDENT';
+}
 
 export function parseJwtPayload(token: string): any {
   try {
@@ -23,44 +38,50 @@ export function parseJwtPayload(token: string): any {
 
 export function extractUserFromAuthResponse(
   response: any,
-  fallbackEmail?: string,
-  fallbackRole?: string
+  fallbackEmail?: string
 ): User {
   let id = 1;
   let email = fallbackEmail || '';
   let firstName = '';
   let lastName = '';
-  let role: User['role'] = (fallbackRole as any) || 'STUDENT';
+  let rawRole: string | undefined = undefined;
+  let role: UserRole = 'STUDENT';
   let active = true;
+  let firstLogin = false;
+  let institutionId: number | undefined = undefined;
 
-  // 1. If backend returned a nested user object
+  if (response?.firstLogin !== undefined) {
+    firstLogin = Boolean(response.firstLogin);
+  }
+
+  // 1. Direct Backend LoginResponse { token, userId, email, roles, firstLogin }
+  if (response?.userId) id = response.userId;
+  if (response?.email) email = response.email;
+  if (Array.isArray(response?.roles) && response.roles.length > 0) {
+    rawRole = response.roles[0];
+    role = mapBackendRoleToAppRole(rawRole);
+  } else if (response?.role) {
+    rawRole = response.role;
+    role = mapBackendRoleToAppRole(rawRole);
+  }
+
+  // 2. If response has nested user object
   if (response?.user && typeof response.user === 'object') {
     const u = response.user;
     if (u.id) id = u.id;
     if (u.email) email = u.email;
     if (u.firstName) firstName = u.firstName;
     if (u.lastName) lastName = u.lastName;
-    if (u.role) role = String(u.role).replace('ROLE_', '') as User['role'];
+    if (u.role) {
+      rawRole = u.role;
+      role = mapBackendRoleToAppRole(u.role);
+    }
     if (u.active !== undefined) active = u.active;
+    if (u.firstLogin !== undefined) firstLogin = u.firstLogin;
+    if (u.institutionId) institutionId = u.institutionId;
   }
 
-  // 2. If backend returned flat top-level fields
-  if (response?.id) id = response.id;
-  if (response?.email) email = response.email;
-  if (response?.firstName) firstName = response.firstName;
-  if (response?.lastName) lastName = response.lastName;
-  if (response?.name && !firstName) {
-    const parts = response.name.trim().split(/\s+/);
-    firstName = parts[0];
-    lastName = parts.slice(1).join(' ');
-  }
-  if (response?.role) {
-    role = String(response.role).replace('ROLE_', '') as User['role'];
-  } else if (Array.isArray(response?.roles) && response.roles.length > 0) {
-    role = String(response.roles[0]).replace('ROLE_', '') as User['role'];
-  }
-
-  // 3. Decode JWT payload if token exists
+  // 3. Decode JWT payload if token exists to extract extra claims (sub, institutionId, names)
   const token = response?.token || response?.accessToken || (typeof response === 'string' ? response : null);
   if (token && typeof token === 'string' && token.includes('.')) {
     const jwtPayload = parseJwtPayload(token);
@@ -71,6 +92,9 @@ export function extractUserFromAuthResponse(
       if (jwtPayload.id || jwtPayload.userId || jwtPayload.sub_id) {
         id = jwtPayload.id || jwtPayload.userId || jwtPayload.sub_id;
       }
+      if (jwtPayload.institutionId) {
+        institutionId = jwtPayload.institutionId;
+      }
       if (!firstName && jwtPayload.firstName) firstName = jwtPayload.firstName;
       if (!lastName && jwtPayload.lastName) lastName = jwtPayload.lastName;
       if (!firstName && jwtPayload.name) {
@@ -78,16 +102,27 @@ export function extractUserFromAuthResponse(
         firstName = parts[0];
         lastName = parts.slice(1).join(' ');
       }
-      if (jwtPayload.role || jwtPayload.roles || jwtPayload.authorities) {
-        const rawRole = jwtPayload.role || (Array.isArray(jwtPayload.roles) ? jwtPayload.roles[0] : (Array.isArray(jwtPayload.authorities) ? (typeof jwtPayload.authorities[0] === 'string' ? jwtPayload.authorities[0] : jwtPayload.authorities[0]?.authority) : null));
-        if (rawRole) {
-          role = String(rawRole).replace('ROLE_', '') as User['role'];
+      if (!rawRole) {
+        const jwtRole =
+          jwtPayload.role ||
+          (Array.isArray(jwtPayload.roles) ? jwtPayload.roles[0] : null) ||
+          (Array.isArray(jwtPayload.authorities)
+            ? typeof jwtPayload.authorities[0] === 'string'
+              ? jwtPayload.authorities[0]
+              : jwtPayload.authorities[0]?.authority
+            : null);
+        if (jwtRole) {
+          rawRole = jwtRole;
+          role = mapBackendRoleToAppRole(jwtRole);
         }
+      }
+      if (jwtPayload.firstLogin !== undefined) {
+        firstLogin = Boolean(jwtPayload.firstLogin);
       }
     }
   }
 
-  // 4. Derive first and last name from email if still empty (e.g. "frank.xavio@educonflux.com" -> "Frank", "Xavio")
+  // 4. Fallback name split from email (e.g. admin@institution.edu -> Admin)
   if (!firstName && email) {
     const localPart = email.split('@')[0];
     const chunks = localPart.split(/[._-]/).filter(Boolean);
@@ -101,10 +136,13 @@ export function extractUserFromAuthResponse(
 
   return {
     id,
-    email: email || fallbackEmail || 'student@institution.edu',
-    firstName: firstName || 'Student',
+    email: email || fallbackEmail || 'user@educonflux.com',
+    firstName: firstName || (role === 'ADMIN' ? 'Administrator' : role === 'TEACHER' ? 'Faculty' : 'Student'),
     lastName: lastName || '',
     role,
-    active
+    rawRole,
+    active,
+    firstLogin,
+    institutionId,
   };
 }

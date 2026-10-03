@@ -41,7 +41,47 @@ export function useCreateClassroom() {
     mutationFn: (data: ClassroomRequest) => classroomApi.createClassroom(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.classrooms.facultyList() });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'faculty'] });
     },
+  });
+}
+
+export function useArchiveClassroom() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (classroomId: number) => classroomApi.archiveClassroom(classroomId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classrooms.facultyList() });
+    },
+  });
+}
+
+export function useJoinClassroom() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => classroomApi.joinClassroom(token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classrooms.studentList() });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'student'] });
+    },
+  });
+}
+
+export function useCreateInvitation(classroomId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentIds: number[]) => classroomApi.createInvitation(classroomId, studentIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['classrooms', classroomId, 'invitations'] });
+    },
+  });
+}
+
+export function useClassroomInvitations(classroomId: number) {
+  return useQuery({
+    queryKey: ['classrooms', classroomId, 'invitations'],
+    queryFn: () => classroomApi.getClassroomInvitations(classroomId),
+    enabled: classroomId > 0,
   });
 }
 
@@ -77,6 +117,6 @@ export function useChatHistory(classroomId: number) {
     queryKey: queryKeys.classrooms.chatHistory(classroomId),
     queryFn: () => classroomApi.getChatHistory(classroomId),
     enabled: classroomId > 0,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 }

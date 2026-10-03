@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -6,50 +6,68 @@ import { ActivationPage } from './pages/ActivationPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import { StudentDashboard } from './pages/StudentDashboard';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 export function App() {
-  const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
+  return (
+    <Routes>
+      {/* Public Pages */}
+      <Route path="/" element={<LandingPage onNavigate={navigate} />} />
+      <Route path="/login" element={<LoginPage onNavigate={navigate} />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={navigate} />} />
+      <Route path="/activate" element={<ActivationPage onNavigate={navigate} />} />
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+      {/* Authenticated / Role-Guarded Pages */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRole="ADMIN">
+            <AdminDashboard onNavigate={navigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teacher"
+        element={
+          <ProtectedRoute allowedRole="TEACHER">
+            <TeacherDashboard onNavigate={navigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student"
+        element={
+          <ProtectedRoute allowedRole="STUDENT">
+            <StudentDashboard onNavigate={navigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
 
-  const navigate = (path: string) => {
-    window.history.pushState({}, '', path);
-    setCurrentPath(path);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  if (currentPath === '/login') {
-    return <LoginPage onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/forgot-password') {
-    return <ForgotPasswordPage onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/activate') {
-    return <ActivationPage onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/admin') {
-    return <AdminDashboard onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/teacher') {
-    return <TeacherDashboard onNavigate={navigate} />;
-  }
-
-  if (currentPath === '/student') {
-    return <StudentDashboard onNavigate={navigate} />;
-  }
-
-  return <LandingPage onNavigate={navigate} />;
+      {/* 404 Catch-All */}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
 }
 
 export default App;

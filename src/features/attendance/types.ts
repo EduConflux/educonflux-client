@@ -1,4 +1,4 @@
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE';
 
 export interface AttendanceResponse {
   id: number;

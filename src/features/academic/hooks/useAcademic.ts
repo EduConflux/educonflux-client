@@ -1,7 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicApi } from '../api/academicApi';
 import { queryKeys } from '../../../api/queryKeys';
-import type { AcademicYear, Department, Program, Semester, Course, ClassSection } from '../types';
+import type {
+  CreateAcademicYearRequest,
+  CreateDepartmentRequest,
+  CreateProgramRequest,
+  CreateSemesterRequest,
+  CreateCourseRequest,
+  CreateClassSectionRequest,
+  AcademicStatus,
+} from '../types';
 
 // Academic Years
 export function useAcademicYears() {
@@ -14,7 +22,18 @@ export function useAcademicYears() {
 export function useCreateAcademicYear() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<AcademicYear>) => academicApi.createAcademicYear(data),
+    mutationFn: (data: CreateAcademicYearRequest) => academicApi.createAcademicYear(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.years() });
+    },
+  });
+}
+
+export function useUpdateAcademicYearStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateAcademicYearStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.years() });
     },
@@ -32,7 +51,18 @@ export function useDepartments() {
 export function useCreateDepartment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Department>) => academicApi.createDepartment(data),
+    mutationFn: (data: CreateDepartmentRequest) => academicApi.createDepartment(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.departments() });
+    },
+  });
+}
+
+export function useUpdateDepartmentStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateDepartmentStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.departments() });
     },
@@ -50,7 +80,18 @@ export function usePrograms() {
 export function useCreateProgram() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Program>) => academicApi.createProgram(data),
+    mutationFn: (data: CreateProgramRequest) => academicApi.createProgram(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.programs() });
+    },
+  });
+}
+
+export function useUpdateProgramStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateProgramStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.programs() });
     },
@@ -68,7 +109,18 @@ export function useSemesters() {
 export function useCreateSemester() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Semester>) => academicApi.createSemester(data),
+    mutationFn: (data: CreateSemesterRequest) => academicApi.createSemester(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.semesters() });
+    },
+  });
+}
+
+export function useUpdateSemesterStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateSemesterStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.semesters() });
     },
@@ -86,7 +138,18 @@ export function useCourses() {
 export function useCreateCourse() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Course>) => academicApi.createCourse(data),
+    mutationFn: (data: CreateCourseRequest) => academicApi.createCourse(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.courses() });
+    },
+  });
+}
+
+export function useUpdateCourseStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateCourseStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.courses() });
     },
@@ -104,7 +167,18 @@ export function useClassSections() {
 export function useCreateClassSection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<ClassSection>) => academicApi.createClassSection(data),
+    mutationFn: (data: CreateClassSectionRequest) => academicApi.createClassSection(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.academic.sections() });
+    },
+  });
+}
+
+export function useUpdateClassSectionStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AcademicStatus }) =>
+      academicApi.updateClassSectionStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.academic.sections() });
     },

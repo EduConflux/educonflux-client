@@ -22,32 +22,25 @@ export const learningApi = {
   deleteMaterial: (materialId: number) =>
     apiClient.delete<void>(`/faculty/learning-materials/${materialId}`),
 
-  // Files: Upload single file (multipart form data)
+  // Files: Upload single file (multipart form data through HttpClient)
   uploadFile: async (file: File): Promise<StoredFile> => {
     const formData = new FormData();
     formData.append('file', file);
-
-    const token = localStorage.getItem('educonflux_token');
-    const response = await fetch('/api/files/upload', {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(errText || 'File upload failed');
-    }
-
-    return response.json();
+    return apiClient.post<StoredFile>('/files/upload', formData);
   },
 
   // Files: Get file metadata
   getFileDetails: (fileId: number) =>
     apiClient.get<StoredFile>(`/files/${fileId}`),
 
-  // Files: Helper to get direct download URL
+  // Files: Get public or presigned URL
+  getFileUrl: (fileId: number) =>
+    apiClient.get<{ url: string }>(`/files/${fileId}/url`),
+
+  // Files: Get file download endpoint URL
   getFileDownloadUrl: (fileId: number) => `/api/files/${fileId}/download`,
+
+  // Files: Authenticated blob download
+  downloadFile: (fileId: number, filename?: string) =>
+    apiClient.downloadFile(fileId, filename),
 };

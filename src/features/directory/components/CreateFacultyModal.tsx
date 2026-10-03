@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { FacultyRequest } from '../types';
+import { useDepartments } from '../../academic/hooks/useAcademic';
 
 interface CreateFacultyModalProps {
   isOpen: boolean;
@@ -12,11 +13,15 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { data: departments = [] } = useDepartments();
+
   const [formData, setFormData] = useState<FacultyRequest>({
+    departmentId: 0,
     employeeId: '',
     firstName: '',
     lastName: '',
     email: '',
+    personalEmail: '',
     designation: 'Professor',
     qualification: 'Ph.D in Computer Science',
     status: 'ACTIVE',
@@ -27,9 +32,16 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.departmentId) {
+      alert('Please select a department.');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        ...formData,
+        personalEmail: formData.personalEmail || formData.email,
+      });
       onClose();
     } catch {
       // error handled by mutation
@@ -40,12 +52,31 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-[#E5E5E5] shadow-2xl space-y-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md border border-[#E5E5E5] shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <h3 className="font-bold text-sm text-[#171717]">Add Faculty Member</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">
+              Department *
+            </label>
+            <select
+              required
+              value={formData.departmentId || ''}
+              onChange={(e) => setFormData({ ...formData, departmentId: Number(e.target.value) })}
+              className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs bg-white text-[#171717]"
+            >
+              <option value="">Select Department...</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name || d.departmentName} ({d.code || d.departmentCode})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">First Name</label>
+              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">First Name *</label>
               <input
                 required
                 value={formData.firstName}
@@ -55,7 +86,7 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Last Name</label>
+              <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Last Name *</label>
               <input
                 required
                 value={formData.lastName}
@@ -67,7 +98,7 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Employee ID</label>
+            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Employee ID *</label>
             <input
               required
               value={formData.employeeId}
@@ -78,7 +109,7 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Institutional Email</label>
+            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Institutional Email *</label>
             <input
               required
               type="email"
@@ -89,6 +120,18 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
             />
           </div>
 
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Personal Email *</label>
+            <input
+              required
+              type="email"
+              value={formData.personalEmail}
+              onChange={(e) => setFormData({ ...formData, personalEmail: e.target.value })}
+              className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs"
+              placeholder="alan.personal@gmail.com"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[10px] font-bold uppercase text-[#737373] mb-1">Designation</label>
@@ -96,7 +139,7 @@ export const CreateFacultyModal: React.FC<CreateFacultyModalProps> = ({
                 value={formData.designation}
                 onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                 className="w-full border border-[#E5E5E5] rounded-lg p-2 text-xs"
-                placeholder="Associate Professor"
+                placeholder="Professor"
               />
             </div>
             <div>

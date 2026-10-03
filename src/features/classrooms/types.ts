@@ -1,16 +1,21 @@
-export type PostType = 'ANNOUNCEMENT' | 'ASSIGNMENT' | 'MATERIAL' | 'QUESTION';
+export type PostType = 'ANNOUNCEMENT' | 'GENERAL' | 'ASSIGNMENT' | 'MATERIAL' | 'QUESTION';
 
 export interface Classroom {
   id: number;
   institutionId?: number;
   classSectionId?: number;
+  classSectionName?: string;
   courseOfferingId?: number;
+  courseId?: number;
+  courseCode?: string;
+  courseName?: string;
+  // Legacy aliases
   courseTitle?: string;
   sectionCode?: string;
   name: string;
   description?: string;
   room?: string;
-  invitationCode?: string;
+  status?: 'ACTIVE' | 'ARCHIVED';
   archived?: boolean;
   facultyId?: number;
   facultyName?: string;
@@ -34,23 +39,24 @@ export interface StudentClassroomResponse {
 }
 
 export interface MembershipResponse {
-  membershipId: number;
+  id?: number;
+  membershipId?: number;
   classroomId: number;
   classroomName?: string;
   studentId: number;
-  studentName: string;
+  studentName?: string;
   enrollmentNumber?: string;
-  email: string;
+  email?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'REMOVED';
   joinedAt?: string;
   removedAt?: string;
 }
 
 export interface ClassroomRequest {
-  classSectionId?: number;
-  courseOfferingId?: number;
   name: string;
   description?: string;
+  courseOfferingId: number;
+  classSectionId: number;
   room?: string;
 }
 
@@ -78,13 +84,36 @@ export interface ChatMessage {
   classroomId: number;
   senderId: number;
   senderName: string;
-  messageContent: string;
-  timestamp: string;
+  content?: string;
+  messageContent?: string;
+  createdAt?: string;
+  timestamp?: string;
+  messageType?: string;
   isPrivate?: boolean;
 }
 
 export interface SendChatMessageRequest {
   classroomId: number;
-  messageContent: string;
+  messageContent?: string;
+  content?: string;
   recipientId?: number;
+}
+
+export interface InvitationResponse {
+  id: number;
+  classroomId: number;
+  classroomName?: string;
+  token: string;
+  invitationLink?: string;
+  createdAt?: string;
+  expiresAt?: string;
+  active: boolean;
+}
+
+export interface CreateInvitationRequest {
+  studentIds: number[];
+}
+
+export interface JoinClassroomRequest {
+  token: string;
 }

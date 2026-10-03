@@ -6,7 +6,10 @@ export interface User {
   firstName?: string;
   lastName?: string;
   role: UserRole;
+  rawRole?: string;
   active?: boolean;
+  firstLogin?: boolean;
+  institutionId?: number;
 }
 
 export interface RoleConfig {
@@ -25,7 +28,7 @@ export interface LoginFormState {
   rememberMe: boolean;
 }
 
-export type AuthErrorType = 'VALIDATION' | 'INVALID_CREDENTIALS' | 'NETWORK' | null;
+export type AuthErrorType = 'VALIDATION' | 'INVALID_CREDENTIALS' | 'NETWORK' | 'ROLE_MISMATCH' | null;
 
 export interface ValidationErrors {
   role?: string;
@@ -40,8 +43,12 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
+  userId?: number;
+  email?: string;
+  roles?: string[];
+  firstLogin?: boolean;
   accessToken?: string;
-  user: User;
+  user?: User;
 }
 
 export interface ActivationRequest {
@@ -49,6 +56,6 @@ export interface ActivationRequest {
 }
 
 export interface ChangePasswordRequest {
-  oldPassword: string;
+  currentPassword: string;
   newPassword: string;
 }
