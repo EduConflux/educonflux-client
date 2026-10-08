@@ -25,6 +25,10 @@ export const classroomApi = {
   archiveClassroom: (classroomId: number) =>
     apiClient.patch<void>(`/faculty/classrooms/${classroomId}/archive`),
 
+  // Faculty: Update classroom
+  updateClassroom: (classroomId: number, request: ClassroomRequest) =>
+    apiClient.put<Classroom>(`/faculty/classrooms/${classroomId}`, request),
+
   // Student: Get enrolled classrooms
   getMyClassrooms: () =>
     apiClient.get<StudentClassroomResponse[]>('/student/classrooms'),

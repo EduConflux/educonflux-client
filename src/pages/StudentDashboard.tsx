@@ -18,12 +18,12 @@ import {
   CheckSquare,
   CalendarDays,
   BookOpen,
-  Plus,
   FileText,
   CheckCircle2,
   Clock,
   ArrowRight,
   Sparkles,
+  MapPin,
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -403,9 +403,21 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = () => {
         {/* Tab 4: Timetable */}
         {activeTab === 'timetable' && (
           <div className="space-y-6 animate-in fade-in duration-200">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-[#171717]">Weekly Timetable</h2>
-              <p className="text-xs text-[#737373]">Your enrolled lecture and lab schedule for this term</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+                  <CalendarDays className="w-4 h-4" />
+                  <span>Academic Weekly Schedule</span>
+                </div>
+                <h2 className="text-xl font-black text-[#171717]">My Lecture & Lab Timetable</h2>
+                <p className="text-xs text-[#737373] mt-0.5">
+                  Synchronized weekly schedule for all courses enrolled in your degree cohort.
+                </p>
+              </div>
+
+              <span className="text-xs font-bold text-[#F97316] bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                {liveTimetableEntries.length} Enrolled Sessions
+              </span>
             </div>
 
             {liveTimetableEntries.length === 0 ? (
@@ -415,33 +427,64 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = () => {
                 description="Your academic schedule has not been published yet or no slots are scheduled for your section."
               />
             ) : (
-              <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#F7F7F7] border-b border-[#E5E5E5] font-bold text-[#737373]">
-                    <tr>
-                      <th className="p-4">Day</th>
-                      <th className="p-4">Time</th>
-                      <th className="p-4">Course</th>
-                      <th className="p-4">Room</th>
-                      <th className="p-4">Instructor</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E5E5E5]">
-                    {liveTimetableEntries.map((slot) => (
-                      <tr key={slot.id}>
-                        <td className="p-4 font-bold text-[#F97316]">{slot.dayOfWeek}</td>
-                        <td className="p-4 text-[#525252] font-mono">
-                          {slot.startTime} - {slot.endTime}
-                        </td>
-                        <td className="p-4 font-semibold text-[#171717]">
-                          {slot.courseName || slot.courseCode || 'Class Session'}
-                        </td>
-                        <td className="p-4 text-[#525252]">{slot.room || 'TBD'}</td>
-                        <td className="p-4 text-[#737373]">{slot.facultyName || 'Faculty'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-6">
+                {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'].map((day) => {
+                  const daySlots = liveTimetableEntries.filter((s) => s.dayOfWeek === day);
+                  if (daySlots.length === 0) return null;
+
+                  return (
+                    <div key={day} className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#171717]">{day}</span>
+                        <span className="text-[10px] font-bold text-[#737373] bg-neutral-100 px-2 py-0.5 rounded-full">
+                          {daySlots.length} {daySlots.length === 1 ? 'class' : 'classes'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {daySlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            className="p-4 rounded-xl border border-[#E5E5E5] bg-neutral-50/50 space-y-2.5 hover:border-[#F97316] hover:bg-white transition-all shadow-2xs"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-bold text-xs text-[#171717] block">
+                                  {slot.courseName || slot.courseCode || 'Class Session'}
+                                </span>
+                                {slot.courseCode && (
+                                  <span className="text-[10px] font-mono text-[#737373]">{slot.courseCode}</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-100 text-[#F97316]">
+                                Lecture
+                              </span>
+                            </div>
+
+                            <div className="space-y-1 text-xs text-[#737373]">
+                              <div className="flex items-center gap-1.5 font-semibold text-[#171717]">
+                                <Clock className="w-3.5 h-3.5 text-[#F97316]" />
+                                <span>
+                                  {slot.startTime?.slice(0, 5)} - {slot.endTime?.slice(0, 5)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] pt-1">
+                                <span className="flex items-center gap-1">
+                                  <BookOpen className="w-3 h-3 text-neutral-400" />
+                                  <span>{slot.facultyName || 'Course Faculty'}</span>
+                                </span>
+                                <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>{slot.room || 'TBD'}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

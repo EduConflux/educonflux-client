@@ -4,7 +4,6 @@ import {
   useGradeSubmission,
 } from '../hooks/useAssignments';
 import { FileThumbnail } from './FileThumbnail';
-import { learningApi } from '../../learning/api/learningApi';
 import type { Assignment, AssignmentSubmission } from '../types';
 import {
   X,
@@ -43,24 +42,6 @@ export const SubmissionsReviewModal: React.FC<
 
   const [feedback, setFeedback] =
     useState<string>('');
-
-  const handleDownloadSubmission = async (
-    sub: AssignmentSubmission
-  ) => {
-    if (!sub.fileId) return;
-
-    try {
-      await learningApi.downloadFile(
-        sub.fileId,
-        `submission_${sub.studentName || sub.studentId}`
-      );
-    } catch (error) {
-      console.error(
-        'Failed to download submission:',
-        error
-      );
-    }
-  };
 
   if (!isOpen) return null;
 

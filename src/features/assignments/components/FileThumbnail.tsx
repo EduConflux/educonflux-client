@@ -8,7 +8,6 @@ import {
   File,
   Download,
   Loader2,
-  ExternalLink,
 } from 'lucide-react';
 
 interface FileThumbnailProps {

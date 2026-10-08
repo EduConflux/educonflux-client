@@ -154,7 +154,6 @@ interface AssignmentCardProps {
 
 const AssignmentCard: React.FC<AssignmentCardProps> = ({
   assignment,
-  classroomId,
   role,
   onStudentActionClick,
   onReviewClick,

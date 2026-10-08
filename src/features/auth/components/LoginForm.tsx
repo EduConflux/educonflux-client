@@ -213,7 +213,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           <Input
             label="Institutional Email"
             type="email"
-            placeholder="name@institution.edu"
+            placeholder="name@educonflux.com"
             value={formState.email}
             onChange={(e) => {
               setFormState(prev => ({ ...prev, email: e.target.value }));
@@ -271,14 +271,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
         {/* Activation & Home links */}
         <div className="pt-2 border-t border-[#E5E5E5] flex items-center justify-between text-[11px] text-[#737373]">
-          <button
+          {/* <button
             type="button"
             onClick={() => onNavigate('/activate')}
             className="text-[#525252] hover:text-[#171717] font-semibold flex items-center gap-1 cursor-pointer"
           >
             <Sparkles className="w-3 h-3 text-[#F97316]" />
             <span>First time? Activate Account</span>
-          </button>
+          </button> */}
 
           <button
             type="button"

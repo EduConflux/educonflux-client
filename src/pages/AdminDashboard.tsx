@@ -37,6 +37,9 @@ import { CreateStudentModal } from '../features/directory/components/CreateStude
 import { CreateFacultyModal } from '../features/directory/components/CreateFacultyModal';
 import { UserManagementView } from '../features/users/components/UserManagementView';
 import { CurriculumManagementView } from '../features/curriculum/components/CurriculumManagementView';
+import { TimetableManagementView } from '../features/timetable/components/TimetableManagementView';
+import { AdminNotificationDispatchView } from '../features/notification/components/AdminNotificationDispatchView';
+import { InstitutionSettingsView } from '../features/institution/components/InstitutionSettingsView';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { Input } from '../components/common/Input';
@@ -51,6 +54,9 @@ import {
   Plus,
   FileText,
   School,
+  CalendarDays,
+  Megaphone,
+  Building,
 } from 'lucide-react';
 import type { CourseType } from '../features/academic/types';
 
@@ -58,7 +64,16 @@ interface AdminDashboardProps {
   onNavigate?: (route: string) => void;
 }
 
-type TabType = 'dashboard' | 'academic' | 'students' | 'faculty' | 'curriculum' | 'users';
+type TabType =
+  | 'dashboard'
+  | 'academic'
+  | 'curriculum'
+  | 'timetable'
+  | 'students'
+  | 'faculty'
+  | 'users'
+  | 'notifications'
+  | 'institution';
 type AcademicSubTab = 'years' | 'departments' | 'programs' | 'semesters' | 'courses' | 'sections';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
@@ -263,6 +278,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
 
           <button
             type="button"
+            onClick={() => setActiveTab('timetable')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'timetable'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span>Timetable Scheduler</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('students')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'students'
@@ -298,6 +326,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           >
             <Users className="w-4 h-4" />
             <span>User Accounts</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'notifications'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>Broadcast Alerts</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('institution')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'institution'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
+          >
+            <Building className="w-4 h-4" />
+            <span>Institution Profile</span>
           </button>
         </div>
 
@@ -676,8 +730,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           </div>
         )}
 
+        {/* TIMETABLE MANAGEMENT TAB */}
+        {activeTab === 'timetable' && <TimetableManagementView />}
+
         {/* 6. USERS MANAGEMENT TAB */}
         {activeTab === 'users' && <UserManagementView />}
+
+        {/* CAMPUS NOTIFICATIONS TAB */}
+        {activeTab === 'notifications' && <AdminNotificationDispatchView />}
+
+        {/* INSTITUTION PROFILE TAB */}
+        {activeTab === 'institution' && <InstitutionSettingsView />}
 
         {/* Modals for Academic Creations */}
         <Modal

@@ -56,6 +56,17 @@ export function useArchiveClassroom() {
   });
 }
 
+export function useUpdateClassroom() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: ClassroomRequest }) =>
+      classroomApi.updateClassroom(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classrooms.facultyList() });
+    },
+  });
+}
+
 export function useJoinClassroom() {
   const queryClient = useQueryClient();
   return useMutation({

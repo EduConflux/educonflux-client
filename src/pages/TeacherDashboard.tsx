@@ -10,6 +10,7 @@ import {
   useCreateClassroom,
   useCreateInvitation,
   useArchiveClassroom,
+  useClassroomMembers,
 } from '../features/classrooms/hooks/useClassrooms';
 import { ClassroomHub } from '../features/classrooms/components/ClassroomHub';
 import { Button } from '../components/common/Button';
@@ -31,6 +32,7 @@ import {
   Clock,
   MapPin,
   CalendarDays,
+  UserCheck,
 } from 'lucide-react';
 import type { AttendanceStatus } from '../features/attendance/types';
 
@@ -64,14 +66,80 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = () => {
   const { data: todayTimetable = [] } = useFacultyTodayTimetable();
   const { data: weeklyTimetable = [] } = useFacultyWeeklyTimetable();
 
-  // Attendance
-  const activeTimetableEntryId = todayTimetable[0]?.id || 1;
+  // All available timetable slots
+  const allTimetableSlots = React.useMemo(() => {
+    const map = new Map<number, (typeof weeklyTimetable)[0]>();
+    weeklyTimetable.forEach((s) => map.set(s.id, s));
+    todayTimetable.forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
+  }, [weeklyTimetable, todayTimetable]);
+
+  const [selectedTimetableEntryId, setSelectedTimetableEntryId] = useState<number>(0);
+  const activeTimetableEntryId =
+    selectedTimetableEntryId || todayTimetable[0]?.id || weeklyTimetable[0]?.id || 1;
+
+  const currentTimetableSlot =
+    allTimetableSlots.find((s) => s.id === activeTimetableEntryId) || allTimetableSlots[0];
+
+  // Matched classroom for roster
+  const matchingClassroom =
+    liveClassrooms.find(
+      (c) =>
+        (currentTimetableSlot && c.courseOfferingId === currentTimetableSlot.courseOfferingId) ||
+        (currentTimetableSlot && c.classSectionId === currentTimetableSlot.classSectionId)
+    ) || liveClassrooms[0];
+
+  const { data: classroomMembers = [] } = useClassroomMembers(matchingClassroom?.id || 0);
+
+  // Attendance State
   const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [manualStudentId, setManualStudentId] = useState('');
+  const [manualStatus, setManualStatus] = useState<AttendanceStatus>('PRESENT');
+  const [isBulkMarking, setIsBulkMarking] = useState(false);
+
   const { data: liveAttendance = [] } = useFacultyAttendance(
     activeTimetableEntryId,
     attendanceDate
   );
   const markAttendanceMutation = useMarkAttendance();
+
+  // Merged Student Attendance List (class members + recorded entries)
+  const attendanceList = React.useMemo(() => {
+    const list: Array<{
+      studentId: number;
+      studentName: string;
+      enrollmentNumber?: string;
+      status: AttendanceStatus | 'NOT_MARKED';
+      recordId?: number;
+    }> = [];
+
+    const recordedMap = new Map<number, (typeof liveAttendance)[0]>();
+    liveAttendance.forEach((rec) => recordedMap.set(rec.studentId, rec));
+
+    classroomMembers.forEach((member) => {
+      const rec = recordedMap.get(member.studentId);
+      list.push({
+        studentId: member.studentId,
+        studentName: member.studentName || `Student #${member.studentId}`,
+        enrollmentNumber: member.enrollmentNumber,
+        status: rec ? rec.status : 'NOT_MARKED',
+        recordId: rec?.id,
+      });
+      recordedMap.delete(member.studentId);
+    });
+
+    recordedMap.forEach((rec) => {
+      list.push({
+        studentId: rec.studentId,
+        studentName: rec.studentName || `Student #${rec.studentId}`,
+        enrollmentNumber: rec.enrollmentNumber,
+        status: rec.status,
+        recordId: rec.id,
+      });
+    });
+
+    return list;
+  }, [classroomMembers, liveAttendance]);
 
   // Create Classroom Form State
   const [createClassForm, setCreateClassForm] = useState({
@@ -124,11 +192,49 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = () => {
         timetableEntryId: activeTimetableEntryId,
         attendanceDate,
         status,
+        remarks: `Marked on ${attendanceDate}`,
       });
-      success('Attendance Recorded', `Student attendance updated to ${status}.`);
+      success('Attendance Recorded', `Student marked as ${status}.`);
     } catch (err: any) {
-      error('Attendance failed', err?.message);
+      error('Attendance failed', err?.message || 'Could not save attendance.');
     }
+  };
+
+  const handleMarkAllPresent = async () => {
+    const unmarked = attendanceList.filter((s) => s.status !== 'PRESENT');
+    if (unmarked.length === 0) {
+      success('All Set', 'All students are already marked Present.');
+      return;
+    }
+    setIsBulkMarking(true);
+    let count = 0;
+    for (const st of unmarked) {
+      try {
+        await markAttendanceMutation.mutateAsync({
+          studentId: st.studentId,
+          timetableEntryId: activeTimetableEntryId,
+          attendanceDate,
+          status: 'PRESENT',
+          remarks: `Bulk marked on ${attendanceDate}`,
+        });
+        count++;
+      } catch {
+        // continue
+      }
+    }
+    setIsBulkMarking(false);
+    success('Bulk Attendance Complete', `${count} students marked Present.`);
+  };
+
+  const handleManualAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = Number(manualStudentId.trim());
+    if (!id || isNaN(id)) {
+      error('Validation', 'Enter a valid numeric Student ID.');
+      return;
+    }
+    await handleMarkAttendance(id, manualStatus);
+    setManualStudentId('');
   };
 
   const handleArchiveClassroom = async (classroomId: number) => {
@@ -382,84 +488,173 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = () => {
 
         {/* 3. ROSTER ATTENDANCE */}
         {activeTab === 'attendance' && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs space-y-6">
+            {/* Header & Controls */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
               <div>
-                <h3 className="font-bold text-sm text-[#171717]">Mark Classroom Attendance</h3>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+                  <CheckSquare className="w-4 h-4" />
+                  <span>Real-Time Attendance Register</span>
+                </div>
+                <h3 className="font-bold text-base text-[#171717]">Classroom Session Attendance</h3>
                 <p className="text-xs text-[#737373]">
-                  Record real-time attendance for students assigned to your timetable lectures.
+                  Select your scheduled lecture slot and record student attendance.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-[#737373]">Date:</label>
-                <input
-                  type="date"
-                  value={attendanceDate}
-                  onChange={(e) => setAttendanceDate(e.target.value)}
-                  className="px-3 py-1.5 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#171717] outline-hidden focus:border-[#F97316]"
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Timetable Session Dropdown */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-[#171717]">Session:</label>
+                  <select
+                    value={activeTimetableEntryId}
+                    onChange={(e) => setSelectedTimetableEntryId(Number(e.target.value))}
+                    className="px-3 py-1.5 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#171717] font-medium outline-hidden focus:border-[#F97316] max-w-xs"
+                  >
+                    {allTimetableSlots.length === 0 ? (
+                      <option value={1}>Default Session (#1)</option>
+                    ) : (
+                      allTimetableSlots.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.dayOfWeek} {s.startTime?.slice(0, 5)}-{s.endTime?.slice(0, 5)} |{' '}
+                          {s.courseName || `Course #${s.courseId}`} ({s.classSectionName || 'Sec'}) - Room{' '}
+                          {s.room || 'TBD'}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* Date Picker */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-[#171717]">Date:</label>
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="px-3 py-1.5 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#171717] outline-hidden focus:border-[#F97316]"
+                  />
+                </div>
+
+                {/* Bulk Mark All Present */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkAllPresent}
+                  disabled={isBulkMarking || attendanceList.length === 0}
+                  className="gap-1.5 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>{isBulkMarking ? 'Marking All...' : 'Mark All Present'}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Attendance Status Summary Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="p-3 rounded-xl bg-neutral-50 border border-[#E5E5E5] text-xs">
+                <span className="text-[#737373]">Enrolled Roster</span>
+                <p className="text-base font-bold text-[#171717] mt-0.5">{attendanceList.length}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                <span className="text-emerald-700 font-semibold">Present</span>
+                <p className="text-base font-bold text-emerald-800 mt-0.5">
+                  {attendanceList.filter((s) => s.status === 'PRESENT').length}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs">
+                <span className="text-amber-700 font-semibold">Late</span>
+                <p className="text-base font-bold text-amber-800 mt-0.5">
+                  {attendanceList.filter((s) => s.status === 'LATE').length}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs">
+                <span className="text-red-700 font-semibold">Absent</span>
+                <p className="text-base font-bold text-red-800 mt-0.5">
+                  {attendanceList.filter((s) => s.status === 'ABSENT').length}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-neutral-100 border border-neutral-300 text-xs">
+                <span className="text-[#737373] font-semibold">Unmarked</span>
+                <p className="text-base font-bold text-[#171717] mt-0.5">
+                  {attendanceList.filter((s) => s.status === 'NOT_MARKED').length}
+                </p>
               </div>
             </div>
 
             {/* Attendance Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border border-[#E5E5E5] rounded-xl">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-neutral-50/75 border-b border-[#E5E5E5] text-[#737373] font-bold">
+                  <tr className="bg-[#F7F7F7] border-b border-[#E5E5E5] text-[#737373] font-bold">
                     <th className="py-3 px-4">Student</th>
                     <th className="py-3 px-4">Enrollment Number</th>
                     <th className="py-3 px-4">Current Status</th>
-                    <th className="py-3 px-4 text-right">Quick Mark</th>
+                    <th className="py-3 px-4 text-right">Quick Mark Attendance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E5E5]">
-                  {liveAttendance.length === 0 ? (
+                  {attendanceList.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-[#737373]">
-                        No student attendance records recorded yet for this session date.
+                      <td colSpan={4} className="py-10 text-center text-[#737373]">
+                        <p className="font-semibold">No students listed for this session yet.</p>
+                        <p className="text-[11px] text-[#737373] mt-1">
+                          You can quickly record attendance using the "Mark by Student ID" form below.
+                        </p>
                       </td>
                     </tr>
                   ) : (
-                    liveAttendance.map((rec) => (
-                      <tr key={rec.id} className="hover:bg-neutral-50/50">
-                        <td className="py-3 px-4 font-bold text-[#171717]">
-                          {rec.studentName || `Student #${rec.studentId}`}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-[#737373]">{rec.enrollmentNumber || '—'}</td>
+                    attendanceList.map((st) => (
+                      <tr key={st.studentId} className="hover:bg-neutral-50/50">
+                        <td className="py-3 px-4 font-bold text-[#171717]">{st.studentName}</td>
+                        <td className="py-3 px-4 font-mono text-[#737373]">{st.enrollmentNumber || `ID #${st.studentId}`}</td>
                         <td className="py-3 px-4">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              rec.status === 'PRESENT'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : rec.status === 'LATE'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                              st.status === 'PRESENT'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : st.status === 'LATE'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : st.status === 'ABSENT'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-neutral-100 text-neutral-600 border-neutral-300'
                             }`}
                           >
-                            {rec.status}
+                            {st.status === 'NOT_MARKED' ? 'UNRECORDED' : st.status}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => handleMarkAttendance(rec.studentId, 'PRESENT')}
-                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors cursor-pointer"
+                              onClick={() => handleMarkAttendance(st.studentId, 'PRESENT')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+                                st.status === 'PRESENT'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
                             >
                               Present
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleMarkAttendance(rec.studentId, 'LATE')}
-                              className="px-2 py-1 text-[10px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                              onClick={() => handleMarkAttendance(st.studentId, 'LATE')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+                                st.status === 'LATE'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                              }`}
                             >
                               Late
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleMarkAttendance(rec.studentId, 'ABSENT')}
-                              className="px-2 py-1 text-[10px] font-bold bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                              onClick={() => handleMarkAttendance(st.studentId, 'ABSENT')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-colors cursor-pointer ${
+                                st.status === 'ABSENT'
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-red-50 text-red-700 hover:bg-red-100'
+                              }`}
                             >
                               Absent
                             </button>
@@ -471,48 +666,144 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Quick Mark by Student ID (walk-in or add-on student) */}
+            <form
+              onSubmit={handleManualAddStudent}
+              className="flex flex-wrap items-center gap-3 p-4 bg-neutral-50 rounded-xl border border-[#E5E5E5] text-xs"
+            >
+              <span className="font-bold text-[#171717] flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-[#F97316]" />
+                <span>Mark by Student ID:</span>
+              </span>
+              <input
+                type="number"
+                placeholder="Enter Student ID (e.g. 5)"
+                value={manualStudentId}
+                onChange={(e) => setManualStudentId(e.target.value)}
+                className="px-3 py-1.5 border border-[#E5E5E5] rounded-lg bg-white text-[#171717] w-48 outline-hidden focus:border-[#F97316]"
+                required
+              />
+              <select
+                value={manualStatus}
+                onChange={(e) => setManualStatus(e.target.value as AttendanceStatus)}
+                className="px-3 py-1.5 border border-[#E5E5E5] rounded-lg bg-white text-[#171717] font-semibold outline-hidden focus:border-[#F97316]"
+              >
+                <option value="PRESENT">Present</option>
+                <option value="LATE">Late</option>
+                <option value="ABSENT">Absent</option>
+              </select>
+              <Button type="submit" variant="primary" size="sm" className="bg-[#F97316] hover:bg-[#EA580C] text-white">
+                Record
+              </Button>
+            </form>
           </div>
         )}
 
-        {/* 4. WEEKLY SCHEDULE */}
+        {/* 4. WEEKLY SCHEDULE MATRIX */}
         {activeTab === 'timetable' && (
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#E5E5E5]">
-              <CalendarDays className="w-5 h-5 text-[#F97316]" />
-              <h3 className="font-bold text-sm text-[#171717]">Faculty Weekly Lecture Timetable</h3>
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F97316] mb-1">
+                  <CalendarDays className="w-4 h-4" />
+                  <span>Teaching Schedule</span>
+                </div>
+                <h3 className="font-bold text-base text-[#171717]">Faculty Weekly Lecture Matrix</h3>
+                <p className="text-xs text-[#737373]">
+                  All scheduled teaching commitments across departments and sections.
+                </p>
+              </div>
+
+              <span className="text-xs font-bold text-[#F97316] bg-orange-50 border border-orange-200 px-3 py-1 rounded-full">
+                {allTimetableSlots.length} Total Sessions
+              </span>
             </div>
 
-            {weeklyTimetable.length === 0 ? (
-              <p className="text-xs text-[#737373] py-8 text-center">
-                No weekly timetable entries assigned to your faculty profile yet.
-              </p>
+            {allTimetableSlots.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays className="w-8 h-8 text-[#737373]" />}
+                title="No Timetable Slots Assigned"
+                description="Your faculty account does not have any active lecture assignments in the timetable scheduler."
+              />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {weeklyTimetable.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="p-4 rounded-xl border border-[#E5E5E5] bg-neutral-50/50 space-y-2 hover:border-[#F97316] transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-[#171717]">
-                        {slot.courseName || `Course #${slot.courseId}`}
-                      </span>
-                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-neutral-200 text-[#171717]">
-                        {slot.dayOfWeek}
-                      </span>
+              <div className="space-y-6">
+                {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'].map((day) => {
+                  const daySlots = allTimetableSlots.filter((s) => s.dayOfWeek === day);
+                  if (daySlots.length === 0) return null;
+
+                  return (
+                    <div key={day} className="space-y-3">
+                      <div className="flex items-center gap-2 pb-1 border-b border-neutral-100">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#171717]">{day}</span>
+                        <span className="text-[10px] font-bold text-[#737373] bg-neutral-100 px-2 py-0.5 rounded-full">
+                          {daySlots.length} {daySlots.length === 1 ? 'class' : 'classes'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {daySlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            className="p-4 rounded-xl border border-[#E5E5E5] bg-neutral-50/50 space-y-3 hover:border-[#F97316] hover:bg-white transition-all shadow-2xs"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-bold text-xs text-[#171717] block">
+                                  {slot.courseName || `Course #${slot.courseId}`}
+                                </span>
+                                {slot.courseCode && (
+                                  <span className="text-[10px] font-mono text-[#737373]">{slot.courseCode}</span>
+                                )}
+                              </div>
+                              <span
+                                className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                                  slot.status === 'ACTIVE'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {slot.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1 text-xs text-[#737373]">
+                              <div className="flex items-center gap-1.5 font-semibold text-[#171717]">
+                                <Clock className="w-3.5 h-3.5 text-[#F97316]" />
+                                <span>
+                                  {slot.startTime?.slice(0, 5)} - {slot.endTime?.slice(0, 5)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="flex items-center gap-1">
+                                  <Layers className="w-3 h-3 text-neutral-400" />
+                                  <span>{slot.classSectionName || `Section #${slot.classSectionId}`}</span>
+                                </span>
+                                <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>{slot.room || 'TBD'}</span>
+                                </span>
+                              </div>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedTimetableEntryId(slot.id);
+                                setActiveTab('attendance');
+                              }}
+                              className="w-full text-xs gap-1.5 text-[#F97316] hover:bg-orange-50 border-orange-200"
+                            >
+                              <CheckSquare className="w-3.5 h-3.5" />
+                              <span>Take Attendance</span>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-[#737373]">
-                      <span>{slot.classSectionName || 'Section'}</span>
-                      <span>
-                        {slot.startTime} - {slot.endTime}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-[#737373] flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-[#F97316]" />
-                      <span>{slot.room || 'Classroom Lab'}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

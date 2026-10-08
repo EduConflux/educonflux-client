@@ -7,4 +7,6 @@ export const notificationApi = {
   getUnreadCount: () => apiClient.get<number>('/notifications/unread/count'),
   markAsRead: (notificationId: number) => apiClient.patch<NotificationItem>(`/notifications/${notificationId}/read`),
   markAllAsRead: () => apiClient.patch<void>('/notifications/read-all'),
+  createNotification: (data: { userId: number; title: string; message: string; type: string; referenceId?: number }) =>
+    apiClient.post<NotificationItem>('/notifications', data),
 };

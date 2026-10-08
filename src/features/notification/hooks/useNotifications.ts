@@ -46,3 +46,15 @@ export function useMarkAllNotificationsReadMutation() {
     },
   });
 }
+
+export function useCreateNotificationMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { userId: number; title: string; message: string; type: string; referenceId?: number }) =>
+      notificationApi.createNotification(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}

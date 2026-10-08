@@ -58,3 +58,23 @@ export function useCreateTimetableEntry() {
     },
   });
 }
+
+export function useUpdateTimetableStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) => timetableApi.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.timetable.all });
+    },
+  });
+}
+
+export function useDeleteTimetableEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => timetableApi.deleteEntry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.timetable.all });
+    },
+  });
+}

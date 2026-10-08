@@ -32,13 +32,11 @@ export interface TimetableEntry {
 
 export interface TimetableEntryRequest {
   classSectionId: number;
-  courseOfferingId?: number;
-  courseId: number;
-  facultyAssignmentId?: number;
-  facultyId?: number;
+  courseOfferingId: number;
+  facultyAssignmentId: number;
   dayOfWeek: DayOfWeek;
   startTime: string;
   endTime: string;
-  room: string;
+  room?: string;
   status?: TimetableStatus;
 }

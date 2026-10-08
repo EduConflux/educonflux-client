@@ -4,7 +4,8 @@ import {
   useStudentClassroomPosts, 
   useCreatePost, 
   useChatHistory,
-  useClassroomMembers 
+  useClassroomMembers,
+  useRemoveStudentFromClassroom,
 } from '../hooks/useClassrooms';
 import { wsManager } from '../../../lib/websocket';
 import { AssignmentList } from '../../assignments/components/AssignmentList';
@@ -24,6 +25,7 @@ import {
   Hash, 
   ChevronRight,
   UserCheck,
+  UserX,
   Layers
 } from 'lucide-react';
 
@@ -77,8 +79,20 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
   const posts: ClassroomPost[] = role === 'faculty' ? facultyPosts : studentPosts;
 
   const createPostMutation = useCreatePost(activeClass?.id || 0);
+  const removeStudentMutation = useRemoveStudentFromClassroom(activeClass?.id || 0);
   const { data: remoteChat = [] } = useChatHistory(activeClass?.id || 0);
   const { data: rosterMembers = [], isLoading: isLoadingRoster } = useClassroomMembers(activeClass?.id || 0);
+
+  const handleRemoveStudent = async (studentId: number, studentName?: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${studentName || 'this student'} from this classroom?`)) {
+      return;
+    }
+    try {
+      await removeStudentMutation.mutateAsync(studentId);
+    } catch (err) {
+      console.error('Failed to remove student:', err);
+    }
+  };
 
   // Handle post submit
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -516,6 +530,7 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
                       <th className="p-3.5">Enrollment #</th>
                       <th className="p-3.5">Institutional Email</th>
                       <th className="p-3.5">Status</th>
+                      {role === 'faculty' && <th className="p-3.5 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E5E5E5]">
@@ -532,6 +547,20 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
                             {m.status}
                           </span>
                         </td>
+                        {role === 'faculty' && (
+                          <td className="p-3.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStudent(m.studentId, m.studentName)}
+                              disabled={removeStudentMutation.isPending}
+                              title="Remove Student from Classroom"
+                              className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
+                            >
+                              <UserX className="w-3.5 h-3.5" />
+                              <span>Remove</span>
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
