@@ -59,10 +59,17 @@ class HttpClient {
       }
 
       let errorData: any;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = await response.text();
+
+      const rawError = await response.text();
+
+      if (rawError) {
+        try {
+          errorData = JSON.parse(rawError);
+        } catch {
+          errorData = rawError;
+        }
+      } else {
+        errorData = null;
       }
 
       const error: ApiError = {
