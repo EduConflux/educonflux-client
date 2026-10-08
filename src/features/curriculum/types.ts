@@ -1,3 +1,4 @@
+export type CourseOfferingStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 export type CurriculumStatus = 'ACTIVE' | 'INACTIVE' | 'COMPLETED' | 'CANCELLED';
 
 export interface CourseOffering {
@@ -10,7 +11,7 @@ export interface CourseOffering {
   academicYearName?: string;
   semesterId: number;
   semesterName?: string;
-  status: CurriculumStatus;
+  status: CourseOfferingStatus;
   createdAt?: string;
 }
 

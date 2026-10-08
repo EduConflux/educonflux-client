@@ -4,6 +4,7 @@ import {
   useFacultyAssignments,
   useStudentEnrollments,
   useCreateCourseOfferingMutation,
+  useUpdateCourseOfferingStatusMutation,
   useCreateFacultyAssignmentMutation,
   useCreateStudentEnrollmentMutation,
 } from '../hooks/useCurriculum';
@@ -13,6 +14,7 @@ import { Button } from '../../../components/common/Button';
 import { Modal } from '../../../components/common/Modal';
 import { useToast } from '../../../components/common/ToastContext';
 import { Plus, BookOpen, UserCheck, Users, Loader2 } from 'lucide-react';
+import type { CourseOfferingStatus } from '../types';
 
 export const CurriculumManagementView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'offerings' | 'faculty' | 'enrollments'>('offerings');
@@ -35,6 +37,7 @@ export const CurriculumManagementView: React.FC = () => {
   const [showOfferingModal, setShowOfferingModal] = useState(false);
   const [showFacultyModal, setShowFacultyModal] = useState(false);
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
+  const [updatingStatusOfferingId, setUpdatingStatusOfferingId] = useState<number | null>(null);
 
   // Forms
   const [offeringForm, setOfferingForm] = useState({ courseId: 0, academicYearId: 0, semesterId: 0 });
@@ -43,8 +46,36 @@ export const CurriculumManagementView: React.FC = () => {
 
   // Mutations
   const createOfferingMutation = useCreateCourseOfferingMutation();
+  const updateOfferingStatusMutation = useUpdateCourseOfferingStatusMutation();
   const createFacultyMutation = useCreateFacultyAssignmentMutation();
   const createEnrollmentMutation = useCreateStudentEnrollmentMutation();
+
+  const handleStatusChange = async (offeringId: number, newStatus: CourseOfferingStatus) => {
+    try {
+      setUpdatingStatusOfferingId(offeringId);
+      await updateOfferingStatusMutation.mutateAsync({ id: offeringId, status: newStatus });
+      success('Status Updated', `Course Offering #${offeringId} status changed to ${newStatus}.`);
+    } catch (err: any) {
+      error('Failed to update status', err?.message || 'Could not change course offering status.');
+    } finally {
+      setUpdatingStatusOfferingId(null);
+    }
+  };
+
+  const getStatusBadgeStyle = (status?: CourseOfferingStatus) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100';
+      case 'PLANNED':
+        return 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100';
+      case 'COMPLETED':
+        return 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100';
+      case 'CANCELLED':
+        return 'bg-red-50 text-red-800 border-red-300 hover:bg-red-100';
+      default:
+        return 'bg-neutral-50 text-neutral-800 border-neutral-300';
+    }
+  };
 
   const handleCreateOffering = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +85,7 @@ export const CurriculumManagementView: React.FC = () => {
     }
     try {
       await createOfferingMutation.mutateAsync(offeringForm);
-      success('Course Offered', 'Course offering has been published for the term.');
+      success('Course Offered', 'New course offering created with default status PLANNED.');
       setShowOfferingModal(false);
       setOfferingForm({ courseId: 0, academicYearId: 0, semesterId: 0 });
     } catch (err: any) {
@@ -213,9 +244,27 @@ export const CurriculumManagementView: React.FC = () => {
                     <td className="py-3 px-4 text-[#737373]">{o.academicYearName || `#${o.academicYearId}`}</td>
                     <td className="py-3 px-4 text-[#737373]">{o.semesterName || `#${o.semesterId}`}</td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {o.status}
-                      </span>
+                      <div className="inline-flex items-center gap-1.5">
+                        <select
+                          value={o.status || 'PLANNED'}
+                          disabled={updatingStatusOfferingId === o.id}
+                          onChange={(e) =>
+                            handleStatusChange(o.id, e.target.value as CourseOfferingStatus)
+                          }
+                          className={`text-[11px] font-bold py-1 px-2.5 rounded-lg border cursor-pointer transition-all focus:outline-hidden ${getStatusBadgeStyle(
+                            o.status
+                          )}`}
+                          title="Change course offering status"
+                        >
+                          <option value="PLANNED">PLANNED (Draft)</option>
+                          <option value="ACTIVE">ACTIVE (Open)</option>
+                          <option value="COMPLETED">COMPLETED</option>
+                          <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                        {updatingStatusOfferingId === o.id && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F97316]" />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -321,6 +370,15 @@ export const CurriculumManagementView: React.FC = () => {
         description="Schedule a curriculum course for an academic year and semester."
       >
         <form onSubmit={handleCreateOffering} className="space-y-4">
+          <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 space-y-0.5">
+            <span className="font-bold block text-[11px] uppercase tracking-wider text-amber-800">
+              Default Status: PLANNED (Draft)
+            </span>
+            <p className="text-[11px] text-amber-700 leading-relaxed">
+              New course offerings start in <strong>PLANNED</strong> status. You can assign faculty and timetable sections, then change the status to <strong>ACTIVE</strong> when ready for student enrollment.
+            </p>
+          </div>
+
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-[#171717]">Course *</label>
             <select
@@ -377,7 +435,7 @@ export const CurriculumManagementView: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={createOfferingMutation.isPending}>
-              {createOfferingMutation.isPending ? 'Publishing...' : 'Publish Offering'}
+              {createOfferingMutation.isPending ? 'Creating...' : 'Create Offering (Planned)'}
             </Button>
           </div>
         </form>

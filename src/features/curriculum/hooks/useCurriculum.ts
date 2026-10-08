@@ -37,6 +37,17 @@ export function useCreateCourseOfferingMutation() {
   });
 }
 
+export function useUpdateCourseOfferingStatusMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: import('../types').CourseOfferingStatus }) =>
+      curriculumApi.updateCourseOfferingStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['curriculum', 'offerings'] });
+    },
+  });
+}
+
 export function useCreateFacultyAssignmentMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -13,6 +13,8 @@ export const curriculumApi = {
   getCourseOfferings: () => apiClient.get<CourseOffering[]>('/admin/course-offerings'),
   createCourseOffering: (data: CreateCourseOfferingRequest) =>
     apiClient.post<CourseOffering>('/admin/course-offerings', data),
+  updateCourseOfferingStatus: (id: number, status: CourseOffering['status']) =>
+    apiClient.patch<CourseOffering>(`/admin/course-offerings/${id}/status?status=${status}`),
   deleteCourseOffering: (id: number) =>
     apiClient.delete<void>(`/admin/course-offerings/${id}`),
 
