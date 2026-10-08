@@ -23,13 +23,8 @@ export interface StoredFile {
   id: number;
   originalName: string;
   storedName: string;
+  fileUrl: string;
   contentType: string;
   fileSize: number;
-  uploadedBy?: {
-    id: number;
-    firstName?: string;
-    lastName?: string;
-    email: string;
-  };
-  uploadedAt?: string;
+  createdAt?: string;
 }

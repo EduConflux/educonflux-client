@@ -96,32 +96,50 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
 
   useEffect(() => {
     if (!activeClass?.id) return;
-    let cleanupFn: (() => void) | undefined;
+    let isCancelled = false;
+    let unsubscribeFn: (() => void) | null = null;
+
+    // Clear previous real-time buffer on active class change
+    setLocalChat([]);
 
     wsManager
       .subscribeToClassroom(activeClass.id, (msg) => {
-        setLocalChat((prev) => [
-          ...prev,
-          {
-            id: msg.id || Date.now(),
-            sender: msg.senderName || 'Peer',
-            text: msg.content,
-            time: msg.createdAt
-              ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isSelf: msg.senderId === currentUser.id,
-          },
-        ]);
+        if (isCancelled) return;
+        setLocalChat((prev) => {
+          // Avoid appending duplicate websocket events by message id
+          if (msg.id && prev.some((m) => m.id === msg.id)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: msg.id || Date.now(),
+              sender: msg.senderName || 'Peer',
+              text: msg.content,
+              time: msg.createdAt
+                ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isSelf: msg.senderId === currentUser.id,
+            },
+          ];
+        });
       })
-      .then((unsubscribe) => {
-        cleanupFn = unsubscribe;
+      .then((unsub) => {
+        if (isCancelled) {
+          unsub();
+        } else {
+          unsubscribeFn = unsub;
+        }
       })
       .catch((err) => {
         console.warn('WebSocket subscription failed:', err);
       });
 
     return () => {
-      if (cleanupFn) cleanupFn();
+      isCancelled = true;
+      if (unsubscribeFn) {
+        unsubscribeFn();
+      }
     };
   }, [activeClass?.id, currentUser.id]);
 
@@ -138,16 +156,39 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
     });
   };
 
-  const allChat = [
-    ...remoteChat.map(m => ({
-      id: m.id,
-      sender: m.senderName,
-      text: m.content || m.messageContent || '',
-      time: (m.createdAt || m.timestamp) ? new Date(m.createdAt || m.timestamp!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-      isSelf: m.senderId === currentUser.id,
-    })),
-    ...localChat,
-  ];
+  // Combine historical REST messages and real-time WebSocket messages without duplicate IDs
+  const allChat = React.useMemo(() => {
+    const seenIds = new Set<number>();
+    const list: Array<{ id: number; sender: string; text: string; time: string; isSelf: boolean }> = [];
+
+    // 1. Add historical chat from REST API
+    for (const m of remoteChat) {
+      if (m.id) {
+        if (seenIds.has(m.id)) continue;
+        seenIds.add(m.id);
+      }
+      list.push({
+        id: m.id,
+        sender: m.senderName,
+        text: m.content || m.messageContent || '',
+        time: (m.createdAt || m.timestamp)
+          ? new Date(m.createdAt || m.timestamp!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '',
+        isSelf: m.senderId === currentUser.id,
+      });
+    }
+
+    // 2. Add real-time chat from WebSocket (deduplicating against already seen IDs)
+    for (const m of localChat) {
+      if (m.id) {
+        if (seenIds.has(m.id)) continue;
+        seenIds.add(m.id);
+      }
+      list.push(m);
+    }
+
+    return list;
+  }, [remoteChat, localChat, currentUser.id]);
 
   if (!activeClass) {
     return (

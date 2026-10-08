@@ -66,3 +66,15 @@ export function useGradeSubmission(assignmentId: number) {
     },
   });
 }
+
+export function useDeleteSubmission(classroomId: number, assignmentId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => assignmentApi.deleteSubmission(assignmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.mySubmission(assignmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.submissions(assignmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.classroom(classroomId, 'student') });
+    },
+  });
+}

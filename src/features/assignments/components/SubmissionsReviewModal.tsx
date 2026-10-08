@@ -3,11 +3,11 @@ import {
   useAssignmentSubmissions,
   useGradeSubmission,
 } from '../hooks/useAssignments';
+import { FileThumbnail } from './FileThumbnail';
 import { learningApi } from '../../learning/api/learningApi';
 import type { Assignment, AssignmentSubmission } from '../types';
 import {
   X,
-  Download,
   Award,
   CheckCircle2,
   Loader2,
@@ -178,22 +178,6 @@ export const SubmissionsReviewModal: React.FC<
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {sub.fileId && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadSubmission(sub)
-                            }
-                            className="flex items-center gap-1 px-3 py-1.5 bg-[#F7F7F7] hover:bg-orange-50 hover:text-[#F97316] text-[#171717] text-xs font-semibold rounded-lg border border-[#E5E5E5] transition-colors cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-
-                            <span>
-                              Download Submission
-                            </span>
-                          </button>
-                        )}
-
                         {isGraded && !isEditing && (
                           <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold">
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -218,6 +202,19 @@ export const SubmissionsReviewModal: React.FC<
                         )}
                       </div>
                     </div>
+
+                    {/* Submitted File Thumbnail Preview */}
+                    {sub.fileId && (
+                      <div className="pt-1">
+                        <FileThumbnail
+                          fileId={sub.fileId}
+                          fileName={sub.fileName || 'submission_file'}
+                          fileContentType={sub.fileContentType}
+                          fileSize={sub.fileSize}
+                          fileUrl={sub.fileUrl}
+                        />
+                      </div>
+                    )}
 
                     {/* Graded feedback view */}
                     {isGraded &&

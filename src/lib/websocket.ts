@@ -57,6 +57,20 @@ class WebSocketManager {
     }
 
     const destination = `/topic/classroom/${classroomId}/chat`;
+
+    // If an existing subscription exists for this topic, unsubscribe it first
+    if (this.subscriptions.has(destination)) {
+      try {
+        const oldSub = this.subscriptions.get(destination);
+        if (oldSub && typeof oldSub.unsubscribe === 'function') {
+          oldSub.unsubscribe();
+        }
+      } catch (e) {
+        console.warn('Error unsubscribing previous topic:', e);
+      }
+      this.subscriptions.delete(destination);
+    }
+
     const sub = this.client.subscribe(destination, (message: IMessage) => {
       try {
         const payload: ChatWsMessage = JSON.parse(message.body);
@@ -69,7 +83,13 @@ class WebSocketManager {
     this.subscriptions.set(destination, sub);
 
     return () => {
-      sub.unsubscribe();
+      try {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+      } catch (e) {
+        // ignore
+      }
       this.subscriptions.delete(destination);
     };
   }

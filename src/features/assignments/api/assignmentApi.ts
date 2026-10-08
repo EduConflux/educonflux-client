@@ -32,6 +32,10 @@ export const assignmentApi = {
   getMySubmission: (assignmentId: number) =>
     apiClient.get<AssignmentSubmission>(`/student/assignments/${assignmentId}/submission`),
 
+  // Student: Delete/unsubmit own submission
+  deleteSubmission: (assignmentId: number) =>
+    apiClient.delete<void>(`/student/assignments/${assignmentId}/submission`),
+
   // Faculty: Get all submissions for an assignment
   getAssignmentSubmissions: (assignmentId: number) =>
     apiClient.get<AssignmentSubmission[]>(`/faculty/assignments/${assignmentId}/submissions`),

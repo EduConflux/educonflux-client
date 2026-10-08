@@ -30,6 +30,9 @@ export interface AssignmentSubmission {
   studentName?: string;
   fileId: number;
   fileName?: string;
+  fileContentType?: string;
+  fileSize?: number;
+  fileUrl?: string;
   submittedAt: string;
   marks?: number;
   feedback?: string;

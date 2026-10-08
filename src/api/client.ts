@@ -139,10 +139,17 @@ class HttpClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.statusText}`);
+      const errorText = await response.text().catch(() => '');
+      throw new Error(
+        `Failed to download file (status ${response.status}): ${errorText || response.statusText}`
+      );
     }
 
-    const blob = await response.blob();
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const rawBlob = await response.blob();
+    // Re-create blob with the correct MIME type from backend headers
+    const blob = new Blob([rawBlob], { type: contentType });
+
     const contentDisposition = response.headers.get('content-disposition');
     let filename = fallbackFilename;
     if (contentDisposition) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useClassroomAssignments, useStudentSubmission } from '../hooks/useAssignments';
-import { SubmitAssignmentModal } from './SubmitAssignmentModal';
+import { StudentSubmissionModal } from './StudentSubmissionModal';
 import { SubmissionsReviewModal } from './SubmissionsReviewModal';
 import { learningApi } from '../../learning/api/learningApi';
 import type { Assignment } from '../types';
@@ -12,7 +12,9 @@ import {
   Plus,
   Upload,
   Users,
-  Loader2
+  Loader2,
+  Eye,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AssignmentListProps {
@@ -29,7 +31,7 @@ export const AssignmentList: React.FC<AssignmentListProps> = ({
   const { data: assignments = [], isLoading } =
     useClassroomAssignments(classroomId, role);
 
-  const [selectedForSubmit, setSelectedForSubmit] =
+  const [selectedForStudentModal, setSelectedForStudentModal] =
     useState<Assignment | null>(null);
 
   const [selectedForReview, setSelectedForReview] =
@@ -107,8 +109,8 @@ export const AssignmentList: React.FC<AssignmentListProps> = ({
               assignment={assignment}
               classroomId={classroomId}
               role={role}
-              onSubmitClick={() =>
-                setSelectedForSubmit(assignment)
+              onStudentActionClick={() =>
+                setSelectedForStudentModal(assignment)
               }
               onReviewClick={() =>
                 setSelectedForReview(assignment)
@@ -119,12 +121,12 @@ export const AssignmentList: React.FC<AssignmentListProps> = ({
         </div>
       )}
 
-      {/* Student Submission Modal */}
-      {selectedForSubmit && (
-        <SubmitAssignmentModal
-          isOpen={!!selectedForSubmit}
-          onClose={() => setSelectedForSubmit(null)}
-          assignment={selectedForSubmit}
+      {/* Student Submission & Details Modal */}
+      {selectedForStudentModal && (
+        <StudentSubmissionModal
+          isOpen={!!selectedForStudentModal}
+          onClose={() => setSelectedForStudentModal(null)}
+          assignment={selectedForStudentModal}
           classroomId={classroomId}
         />
       )}
@@ -145,7 +147,7 @@ interface AssignmentCardProps {
   assignment: Assignment;
   classroomId: number;
   role: 'faculty' | 'student';
-  onSubmitClick: () => void;
+  onStudentActionClick: () => void;
   onReviewClick: () => void;
   onDownloadAttachment: (assignment: Assignment) => void;
 }
@@ -154,7 +156,7 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
   assignment,
   classroomId,
   role,
-  onSubmitClick,
+  onStudentActionClick,
   onReviewClick,
   onDownloadAttachment,
 }) => {
@@ -195,7 +197,9 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
           <div
             className={`flex items-center gap-1.5 text-xs font-semibold ${
               isPastDue
-                ? 'text-red-600'
+                ? isSubmitted
+                  ? 'text-[#737373]'
+                  : 'text-red-600'
                 : 'text-[#737373]'
             }`}
           >
@@ -220,14 +224,15 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
               ) : isSubmitted ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Turned In
+                  Submitted
                 </span>
               ) : isPastDue ? (
-                <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                  Missing
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">
+                  <AlertTriangle className="w-3 h-3" />
+                  Past Due
                 </span>
               ) : (
-                <span className="text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-0.5 rounded-full">
                   Assigned
                 </span>
               )}
@@ -264,20 +269,31 @@ const AssignmentCard: React.FC<AssignmentCardProps> = ({
         <div className="flex items-center gap-2">
           {isStudent ? (
             <button
-              onClick={onSubmitClick}
-              className={`px-4 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs ${
+              onClick={onStudentActionClick}
+              className={`px-4 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-xs ${
                 isSubmitted
-                  ? 'bg-[#F7F7F7] hover:bg-orange-50 hover:text-[#F97316] text-[#171717] border border-[#E5E5E5]'
+                  ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                  : isPastDue
+                  ? 'bg-[#F7F7F7] hover:bg-red-50 text-red-700 border border-[#E5E5E5]'
                   : 'bg-[#F97316] hover:bg-[#EA580C] text-white'
               }`}
             >
-              <Upload className="w-3.5 h-3.5" />
-
-              <span>
-                {isSubmitted
-                  ? 'Resubmit Solution'
-                  : 'Turn In Solution'}
-              </span>
+              {isSubmitted ? (
+                <>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Submission & Grade</span>
+                </>
+              ) : isPastDue ? (
+                <>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>View Details (Closed)</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Turn In Solution</span>
+                </>
+              )}
             </button>
           ) : (
             <button

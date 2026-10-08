@@ -153,8 +153,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = () => {
               onClick={() => setShowJoinModal(true)}
               className="flex items-center gap-1.5 shadow-xs"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Join Classroom</span>
+                Join Classroom
             </Button>
           </div>
         </div>

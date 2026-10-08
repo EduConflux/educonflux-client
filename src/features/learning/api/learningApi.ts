@@ -37,9 +37,6 @@ export const learningApi = {
   getFileUrl: (fileId: number) =>
     apiClient.get<{ url: string }>(`/files/${fileId}/url`),
 
-  // Files: Get file download endpoint URL
-  getFileDownloadUrl: (fileId: number) => `/api/files/${fileId}/download`,
-
   // Files: Authenticated blob download
   downloadFile: (fileId: number, filename?: string) =>
     apiClient.downloadFile(fileId, filename),
