@@ -11,6 +11,18 @@ export interface ChatWsMessage {
   createdAt?: string;
 }
 
+export function getWebSocketEndpoint(): string {
+  const customWsUrl = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+  if (customWsUrl) {
+    return customWsUrl;
+  }
+  const customApiUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (customApiUrl && customApiUrl.startsWith('http')) {
+    return customApiUrl.replace(/\/api\/?$/, '') + '/ws';
+  }
+  return '/ws';
+}
+
 class WebSocketManager {
   private client: Client | null = null;
   private isConnected = false;
@@ -25,7 +37,7 @@ class WebSocketManager {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
       this.client = new Client({
-        webSocketFactory: () => new SockJS('/ws'),
+        webSocketFactory: () => new SockJS(getWebSocketEndpoint()),
         connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
         debug: () => {},
         reconnectDelay: 5000,

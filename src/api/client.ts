@@ -168,4 +168,5 @@ class HttpClient {
   }
 }
 
-export const apiClient = new HttpClient('/api');
+const defaultApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api';
+export const apiClient = new HttpClient(defaultApiBaseUrl);

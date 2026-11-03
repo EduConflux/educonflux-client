@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { getWebSocketEndpoint } from '../../../lib/websocket';
 import { useAuth } from '../../auth/context/AuthContext';
 import type {
   ClassroomMeetingResponse,
@@ -206,7 +207,7 @@ export function useWebRTCMeeting({
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
     const stompClient = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
+      webSocketFactory: () => new SockJS(getWebSocketEndpoint()),
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       debug: () => {},
       reconnectDelay: 4000,
