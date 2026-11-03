@@ -85,4 +85,24 @@ export const queryKeys = {
     facultyDetail: (id: number) => [...queryKeys.directory.all, 'faculty', id] as const,
     facultyByDepartment: (deptId: number) => [...queryKeys.directory.all, 'faculty', 'department', deptId] as const,
   },
+
+  // Parents & Guardians
+  parent: {
+    all: ['parent'] as const,
+    myStudents: () => [...queryKeys.parent.all, 'myStudents'] as const,
+    attendanceSummary: (studentId: number) =>
+      [...queryKeys.parent.all, 'attendanceSummary', studentId] as const,
+    attendanceHistory: (studentId: number) =>
+      [...queryKeys.parent.all, 'attendanceHistory', studentId] as const,
+    assignments: (studentId: number, page?: number) =>
+      [...queryKeys.parent.all, 'assignments', studentId, page ?? 0] as const,
+    todayTimetable: (studentId: number) =>
+      [...queryKeys.parent.all, 'todayTimetable', studentId] as const,
+    weeklyTimetable: (studentId: number) =>
+      [...queryKeys.parent.all, 'weeklyTimetable', studentId] as const,
+    parentsForStudent: (studentId: number) =>
+      [...queryKeys.parent.all, 'parentsForStudent', studentId] as const,
+    studentsForParent: (parentId: number) =>
+      [...queryKeys.parent.all, 'studentsForParent', parentId] as const,
+  },
 };

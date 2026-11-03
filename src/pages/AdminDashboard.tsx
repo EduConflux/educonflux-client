@@ -40,6 +40,9 @@ import { CurriculumManagementView } from '../features/curriculum/components/Curr
 import { TimetableManagementView } from '../features/timetable/components/TimetableManagementView';
 import { AdminNotificationDispatchView } from '../features/notification/components/AdminNotificationDispatchView';
 import { InstitutionSettingsView } from '../features/institution/components/InstitutionSettingsView';
+import { ParentManagementView } from '../features/parent/components/ParentManagementView';
+import { StudentParentsModal } from '../features/parent/components/StudentParentsModal';
+import type { Student } from '../features/directory/types';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { Input } from '../components/common/Input';
@@ -57,6 +60,7 @@ import {
   CalendarDays,
   Megaphone,
   Building,
+  Shield,
 } from 'lucide-react';
 import type { CourseType } from '../features/academic/types';
 
@@ -71,6 +75,7 @@ type TabType =
   | 'timetable'
   | 'students'
   | 'faculty'
+  | 'parents'
   | 'users'
   | 'notifications'
   | 'institution';
@@ -87,6 +92,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
   const [showAddAcademicModal, setShowAddAcademicModal] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
+  const [studentForParentsModal, setStudentForParentsModal] = useState<Student | null>(null);
 
   // Dashboard Aggregated Metrics
   const { data: dashboardData } = useAdminDashboard();
@@ -313,6 +319,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           >
             <BookOpen className="w-4 h-4" />
             <span>Faculty ({liveFaculty.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('parents')}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'parents'
+                ? 'bg-[#F97316] text-white shadow-xs'
+                : 'text-[#737373] hover:text-[#171717] hover:bg-neutral-100'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Parents & Guardians</span>
           </button>
 
           <button
@@ -704,6 +723,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
               students={liveStudents}
               isLoading={isLoadingStudents}
               onDeleteStudent={deleteStudentMutation.mutateAsync}
+              onViewParents={(st) => setStudentForParentsModal(st)}
             />
           </div>
         )}
@@ -729,6 +749,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
             />
           </div>
         )}
+
+        {/* PARENTS & GUARDIANS TAB */}
+        {activeTab === 'parents' && <ParentManagementView />}
 
         {/* TIMETABLE MANAGEMENT TAB */}
         {activeTab === 'timetable' && <TimetableManagementView />}
@@ -1047,6 +1070,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
           onClose={() => setShowAddFacultyModal(false)}
           onSubmit={async (data) => {
             await createFacultyMutation.mutateAsync(data);
+          }}
+        />
+
+        {/* Student Linked Parents Modal */}
+        <StudentParentsModal
+          isOpen={Boolean(studentForParentsModal)}
+          onClose={() => setStudentForParentsModal(null)}
+          student={studentForParentsModal}
+          onRegisterParent={() => {
+            setStudentForParentsModal(null);
+            setActiveTab('parents');
           }}
         />
       </div>

@@ -1,17 +1,19 @@
 import React from 'react';
 import type { Student } from '../types';
-import { Users, Trash2, Mail, Phone } from 'lucide-react';
+import { Users, Trash2, Mail, Phone, Shield } from 'lucide-react';
 
 interface StudentDirectoryTableProps {
   students: Student[];
   isLoading: boolean;
   onDeleteStudent?: (id: number) => void;
+  onViewParents?: (student: Student) => void;
 }
 
 export const StudentDirectoryTable: React.FC<StudentDirectoryTableProps> = ({
   students,
   isLoading,
   onDeleteStudent,
+  onViewParents,
 }) => {
   if (isLoading) {
     return (
@@ -37,6 +39,8 @@ export const StudentDirectoryTable: React.FC<StudentDirectoryTableProps> = ({
     );
   }
 
+  const hasActions = Boolean(onDeleteStudent || onViewParents);
+
   return (
     <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-xs">
       <div className="overflow-x-auto">
@@ -48,7 +52,7 @@ export const StudentDirectoryTable: React.FC<StudentDirectoryTableProps> = ({
               <th className="p-4">Contact</th>
               <th className="p-4">Program / Section</th>
               <th className="p-4">Status</th>
-              {onDeleteStudent && <th className="p-4 text-right">Actions</th>}
+              {hasActions && <th className="p-4 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E5E5E5]">
@@ -84,16 +88,31 @@ export const StudentDirectoryTable: React.FC<StudentDirectoryTableProps> = ({
                     {st.status}
                   </span>
                 </td>
-                {onDeleteStudent && (
+                {hasActions && (
                   <td className="p-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => onDeleteStudent(st.id)}
-                      className="p-1.5 text-[#737373] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                      title="Delete student"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="inline-flex items-center gap-1">
+                      {onViewParents && (
+                        <button
+                          type="button"
+                          onClick={() => onViewParents(st)}
+                          className="px-2 py-1 text-[#737373] hover:text-[#F97316] rounded-lg hover:bg-orange-50 transition-colors cursor-pointer text-[11px] font-bold inline-flex items-center gap-1"
+                          title="View linked parents / guardians"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-[#F97316]" />
+                          <span>Parents</span>
+                        </button>
+                      )}
+                      {onDeleteStudent && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteStudent(st.id)}
+                          className="p-1.5 text-[#737373] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                          title="Delete student"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -104,3 +123,4 @@ export const StudentDirectoryTable: React.FC<StudentDirectoryTableProps> = ({
     </div>
   );
 };
+export default StudentDirectoryTable;

@@ -6,6 +6,7 @@ import { ActivationPage } from './pages/ActivationPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import { StudentDashboard } from './pages/StudentDashboard';
+import { ParentDashboard } from './pages/ParentDashboard';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -44,6 +45,14 @@ export function App() {
         element={
           <ProtectedRoute allowedRole="STUDENT">
             <StudentDashboard onNavigate={navigate} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/parent"
+        element={
+          <ProtectedRoute allowedRole="PARENT">
+            <ParentDashboard onNavigate={navigate} />
           </ProtectedRoute>
         }
       />

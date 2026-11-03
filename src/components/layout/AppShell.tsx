@@ -9,7 +9,7 @@ import type { SearchResult } from '../../features/search/types';
 
 export interface AppShellProps {
   children: React.ReactNode;
-  activeRole: 'ADMIN' | 'TEACHER' | 'STUDENT';
+  activeRole: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT';
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children, activeRole }) => {
@@ -41,6 +41,8 @@ export const AppShell: React.FC<AppShellProps> = ({ children, activeRole }) => {
       ? 'Administrator Portal'
       : activeRole === 'TEACHER'
       ? 'Faculty Portal'
+      : activeRole === 'PARENT'
+      ? 'Parent & Guardian Portal'
       : 'Student Workspace';
 
   return (
