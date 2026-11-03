@@ -14,9 +14,7 @@ import {
   AlertCircle, 
   WifiOff, 
   CheckCircle, 
-  Sparkles,
-  ArrowRight,
-  Info
+  ArrowRight
 } from 'lucide-react';
 
 interface LoginFormProps {
@@ -65,12 +63,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
     setAuthError(null);
     setRoleMismatchMessage('');
 
-    if (formState.role === 'PARENT') {
-      setRoleMismatchMessage('The Parent & Guardian Portal is launching in Phase 2. Please sign in as Student, Teacher, or Admin.');
-      setAuthError('ROLE_MISMATCH');
-      return;
-    }
-
     if (!validateForm()) {
       return;
     }
@@ -91,7 +83,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
       // Validate selected role against actual account role
       if (user.role !== formState.role) {
         const expectedRoleTitle =
-          user.role === 'ADMIN' ? 'Institution Admin' : user.role === 'TEACHER' ? 'Faculty / Teacher' : 'Student';
+          user.role === 'ADMIN'
+            ? 'Institution Admin'
+            : user.role === 'TEACHER'
+            ? 'Faculty / Teacher'
+            : user.role === 'PARENT'
+            ? 'Parent / Guardian'
+            : 'Student';
         setRoleMismatchMessage(
           `Account Role Mismatch: Your account credentials belong to a ${expectedRoleTitle}, but you selected "${selectedRoleInfo.title}". Please switch to the ${expectedRoleTitle} tab to continue.`
         );
@@ -110,6 +108,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
           onNavigate('/admin');
         } else if (user.role === 'TEACHER') {
           onNavigate('/teacher');
+        } else if (user.role === 'PARENT') {
+          onNavigate('/parent');
         } else {
           onNavigate('/student');
         }
@@ -150,19 +150,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             {selectedRoleInfo.description}
           </p>
         </div>
-
-        {/* Parent Role notice */}
-        {formState.role === 'PARENT' && (
-          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 flex items-start gap-2 animate-in fade-in duration-200">
-            <Info className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-bold block">Parent Portal Phase 2</span>
-              <span className="text-[11px] leading-relaxed">
-                Guardian and parent accounts are currently scheduled for Phase 2 integration. If you are a staff member or student, please select your active role.
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Role Mismatch Alert */}
         {authError === 'ROLE_MISMATCH' && (
@@ -262,7 +249,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
             size="lg"
             className="w-full justify-center mt-2 shadow-sm font-bold cursor-pointer"
             isLoading={loginMutation.isPending}
-            disabled={isSuccess || formState.role === 'PARENT'}
+            disabled={isSuccess}
             rightIcon={!isSuccess ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
             {isSuccess ? 'Launching Portal...' : `Sign in as ${selectedRoleInfo.title}`}
@@ -271,15 +258,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onNavigate }) => {
 
         {/* Activation & Home links */}
         <div className="pt-2 border-t border-[#E5E5E5] flex items-center justify-between text-[11px] text-[#737373]">
-          {/* <button
-            type="button"
-            onClick={() => onNavigate('/activate')}
-            className="text-[#525252] hover:text-[#171717] font-semibold flex items-center gap-1 cursor-pointer"
-          >
-            <Sparkles className="w-3 h-3 text-[#F97316]" />
-            <span>First time? Activate Account</span>
-          </button> */}
-
           <button
             type="button"
             onClick={() => onNavigate('/')}
