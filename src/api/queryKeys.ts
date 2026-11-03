@@ -105,4 +105,13 @@ export const queryKeys = {
     studentsForParent: (parentId: number) =>
       [...queryKeys.parent.all, 'studentsForParent', parentId] as const,
   },
+
+  // Meetings & WebRTC
+  meeting: {
+    all: ['meeting'] as const,
+    active: (classroomId: number) => [...queryKeys.meeting.all, 'active', classroomId] as const,
+    participants: (meetingId: number) => [...queryKeys.meeting.all, 'participants', meetingId] as const,
+    history: (classroomId: number) => [...queryKeys.meeting.all, 'history', classroomId] as const,
+    iceServers: (classroomId: number) => [...queryKeys.meeting.all, 'iceServers', classroomId] as const,
+  },
 };

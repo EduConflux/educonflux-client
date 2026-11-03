@@ -12,6 +12,9 @@ import { AssignmentList } from '../../assignments/components/AssignmentList';
 import { CreateAssignmentModal } from '../../assignments/components/CreateAssignmentModal';
 import { ClassFilesBrowser } from '../../learning/components/ClassFilesBrowser';
 import { UploadMaterialModal } from '../../learning/components/UploadMaterialModal';
+import { useActiveMeeting, useStartMeeting } from '../../meeting/hooks/useMeeting';
+import { ClassroomMeetingRoom } from '../../meeting/components/ClassroomMeetingRoom';
+import type { ClassroomMeetingResponse } from '../../meeting/types';
 import type { ClassroomPost, PostType } from '../types';
 import { 
   MessageSquare, 
@@ -26,7 +29,8 @@ import {
   ChevronRight,
   UserCheck,
   UserX,
-  Layers
+  Layers,
+  Video
 } from 'lucide-react';
 
 export interface ClassroomHubClassItem {
@@ -55,7 +59,39 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
   onSelectClassroom,
   currentUser,
 }) => {
+  const activeClass = classrooms.find(c => c.id === activeClassroomId) || classrooms[0];
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('stream');
+
+  // WebRTC Meeting state
+  const [inMeeting, setInMeeting] = useState(false);
+  const [activeMeetingObj, setActiveMeetingObj] = useState<ClassroomMeetingResponse | null>(null);
+  const { data: liveMeeting } = useActiveMeeting(activeClass?.id || 0);
+  const startMeetingMutation = useStartMeeting();
+
+  const handleStartOrJoinMeeting = async () => {
+    if (liveMeeting) {
+      setActiveMeetingObj(liveMeeting);
+      setInMeeting(true);
+      return;
+    }
+    if (role === 'faculty') {
+      try {
+        const created = await startMeetingMutation.mutateAsync({
+          classroomId: activeClass.id,
+          data: {
+            title: `${activeClass.name} Live Lecture`,
+            allowStudentUnmute: true,
+            allowStudentScreenShare: false,
+          },
+        });
+        setActiveMeetingObj(created);
+        setInMeeting(true);
+      } catch (err: any) {
+        console.error('Failed to start meeting', err);
+        alert(err?.response?.data?.message || err?.message || 'Failed to start video meeting');
+      }
+    }
+  };
 
   // Modals state
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
@@ -71,8 +107,7 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
   const [chatMessage, setChatMessage] = useState('');
   const [localChat, setLocalChat] = useState<Array<{ id: number; sender: string; text: string; time: string; isSelf: boolean }>>([]);
 
-  const activeClass = classrooms.find(c => c.id === activeClassroomId) || classrooms[0];
-
+  
   // Queries for active class
   const { data: facultyPosts = [] } = useFacultyClassroomPosts(activeClass?.id || 0);
   const { data: studentPosts = [] } = useStudentClassroomPosts(activeClass?.id || 0);
@@ -275,6 +310,20 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
             </p>
           </div>
 
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            {role === 'faculty' && !liveMeeting && (
+              <button
+                type="button"
+                onClick={handleStartOrJoinMeeting}
+                disabled={startMeetingMutation.isPending}
+                className="px-3 py-1.5 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>{startMeetingMutation.isPending ? 'Starting...' : 'Start Video Lecture'}</span>
+              </button>
+            )}
+          </div>
+
           {/* Sub Tabs: Stream, Assignments, Files & Folders, Roster */}
           <div className="flex items-center gap-1 bg-[#F7F7F7] p-1 rounded-xl border border-[#E5E5E5] self-start sm:self-center">
             {[
@@ -302,6 +351,32 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
             })}
           </div>
         </div>
+
+        {/* Live Video Lecture Alert Banner */}
+        {liveMeeting && !inMeeting && (
+          <div className="bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-orange-500/5 border-b border-orange-200 px-6 py-3 flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+              <div>
+                <span className="text-xs font-black text-[#171717] block">
+                  Live Video Lecture in Progress: {liveMeeting.title}
+                </span>
+                <span className="text-[11px] text-[#737373]">
+                  Hosted by {liveMeeting.hostName} • {liveMeeting.activeParticipantCount} attendee(s) in room
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleStartOrJoinMeeting}
+              className="px-4 py-2 bg-[#F97316] hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Video className="w-4 h-4" />
+              <span>Join Video Call</span>
+            </button>
+          </div>
+        )}
 
         {/* Tab 1: Stream & Chat */}
         {workspaceTab === 'stream' && (
@@ -585,6 +660,17 @@ export const ClassroomHub: React.FC<ClassroomHubProps> = ({
           isOpen={showUploadMaterial}
           onClose={() => setShowUploadMaterial(false)}
           classroomId={activeClass.id}
+        />
+      )}
+
+      {inMeeting && (activeMeetingObj || liveMeeting) && (
+        <ClassroomMeetingRoom
+          meeting={(activeMeetingObj || liveMeeting)!}
+          classroomId={activeClass.id}
+          onClose={() => {
+            setInMeeting(false);
+            setActiveMeetingObj(null);
+          }}
         />
       )}
     </div>
